@@ -1,29 +1,43 @@
+// src/components/CreateJam.jsx
 import { useNavigate } from 'react-router-dom';
 import { useState } from 'react';
 import axios from 'axios';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 const CreateJam = () => {
     const navigate = useNavigate();
-    const [hostName, setHostName] = useState(''); // state for host name
+    const [hostName, setHostName] = useState('');
+    const [error, setError] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
     const [config, setConfig] = useState({
         timeBetweenSongs: 15,
         playlistId: '',
         singersPerRound: 1
     });
 
-    // create both host user and session -- two seperate records
+    // Configure axios with proper defaults
+    const api = axios.create({
+        baseURL: 'http://localhost:3000',
+        withCredentials: true,
+        timeout: 10000,
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    });
+
     const handleCreateJam = async (e) => {
         e.preventDefault();
+        setError('');
+        setIsLoading(true);
         
-        // Validate that host name is provided
         if (!hostName.trim()) {
-            alert('Please enter your name');
+            setError('Please enter your name');
+            setIsLoading(false);
             return;
         }
 
         try {
-            // Send both host and config data to create the session
-            const response = await axios.post('http://localhost:3000/api/jams/create', {
+            const response = await api.post('/api/jams/create', {
                 host: {
                     name: hostName,
                     isHost: true,
@@ -35,10 +49,8 @@ const CreateJam = () => {
                 }
             });
 
-            // Destructure the response to get all necessary data
             const { hostId, sessionId, joinUrl, qrCode } = response.data;
 
-            // Store session data in localStorage
             localStorage.setItem('sessionData', JSON.stringify({
                 hostId,
                 sessionId,
@@ -47,19 +59,33 @@ const CreateJam = () => {
                 qrCode,
                 config
             }));
+            
             localStorage.setItem('userData', JSON.stringify({
                 participantId: hostId,
                 name: hostName,
                 isHost: true
-              }));
+            }));
 
-            // Navigate to waiting room with session ID
             navigate(`/waiting-room/${sessionId}`);
-            // navigate(`/jam/${sessionId}/waiting-room`);
         } catch (error) {
-            // Provide user feedback for errors
-            alert('Failed to create jam session. Please try again.');
             console.error('Error creating jam:', error);
+            
+            let errorMessage = 'Failed to create jam session. ';
+            
+            if (error.response) {
+                // Server responded with an error
+                errorMessage += error.response.data.error || error.response.statusText;
+            } else if (error.request) {
+                // Request was made but no response received
+                errorMessage += 'Could not reach the server. Please check your connection.';
+            } else {
+                // Error in request setup
+                errorMessage += error.message;
+            }
+            
+            setError(errorMessage);
+        } finally {
+            setIsLoading(false);
         }
     };
 
@@ -67,7 +93,12 @@ const CreateJam = () => {
         <div className="container mx-auto px-4 py-8">
             <form onSubmit={handleCreateJam} className="max-w-lg mx-auto">
                 <div className="space-y-6">
-                    {/* input field */}
+                    {error && (
+                        <Alert variant="destructive">
+                            <AlertDescription>{error}</AlertDescription>
+                        </Alert>
+                    )}
+
                     <div>
                         <label className="block text-sm font-medium text-gray-700">
                             Your Name
@@ -79,6 +110,7 @@ const CreateJam = () => {
                             required
                             className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
                             placeholder="Enter your name"
+                            disabled={isLoading}
                         />
                     </div>
 
@@ -95,6 +127,7 @@ const CreateJam = () => {
                             })}
                             className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
                             min="0"
+                            disabled={isLoading}
                         />
                     </div>
                     
@@ -111,14 +144,16 @@ const CreateJam = () => {
                             })}
                             className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
                             min="1"
+                            disabled={isLoading}
                         />
                     </div>
 
                     <button
                         type="submit"
-                        className="w-full bg-purple-600 text-white py-2 px-4 rounded-md hover:bg-purple-700"
+                        className="w-full bg-purple-600 text-white py-2 px-4 rounded-md hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                        disabled={isLoading}
                     >
-                        Create Jam
+                        {isLoading ? 'Creating Jam...' : 'Create Jam'}
                     </button>
                 </div>
             </form>
