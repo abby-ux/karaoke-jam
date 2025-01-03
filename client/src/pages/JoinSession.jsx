@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import io from "socket.io-client";
 import { useNavigate } from 'react-router-dom';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -66,6 +67,24 @@ const JoinSession = () => {
       if (!response.ok) {
         throw new Error(data.message || 'Failed to join session');
       }
+
+      // Initialize socket connection
+        const socket = io('http://localhost:3000', {
+        query: { sessionId: jamcode }
+      });
+  
+    //   socket.emit('PARTICIPANT_JOINED', {
+    //     participantId: data.participantId,
+    //     name: name.trim(),
+    //     joinedAt: new Date()
+    //   });
+    socket.emit('join_session', jamcode, (response) => {
+        if (response.success) {
+          console.log(`Joined session with ${response.participantCount} participants`);
+        } else {
+          console.error('Failed to join session:', response.error);
+        }
+      });
 
       // Redirect to waiting room or game page
       navigate(`/waiting-room/${jamcode}`);

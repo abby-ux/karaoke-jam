@@ -1,3 +1,4 @@
+// server/index.js
 import express from 'express';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
@@ -5,56 +6,75 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import connectDB from './config/database.js';
 import jamRoutes from './routes/jamRoutes.js';
+import setupSocketServer from './socket/socketServer.js';
 
-// Load environment variables first, so they're available throughout the app
 dotenv.config();
 
-// Initialize our Express application
 const app = express();
 const httpServer = createServer(app);
+
+const allowedOrigins = [
+  'http://localhost:5173',
+  'http://localhost:5174',
+  'http://127.0.0.1:5173',
+  process.env.FRONTEND_URL
+].filter(Boolean);
+
+const corsOptions = {
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true,
+  optionsSuccessStatus: 200
+};
+
+app.use(cors(corsOptions));
+
 const io = new Server(httpServer, {
   cors: {
-    origin: process.env.FRONTEND_URL || "http://localhost:5173",
-    methods: ["GET", "POST"]
-  }
+    origin: allowedOrigins,
+    methods: ['GET', 'POST'],
+    credentials: true,
+    allowedHeaders: ['Content-Type']
+  },
+  pingTimeout: 60000,
+  pingInterval: 25000
 });
 
-// Set up middleware
-app.use(cors());
 app.use(express.json());
 
-// Set up routes
-app.use('/api/jams', jamRoutes);
+const { broadcastToJam } = setupSocketServer(io);
+
+app.use('/api/jams', (req, res, next) => {
+  req.broadcastToJam = broadcastToJam;
+  next();
+}, jamRoutes);
+
 app.get('/health', (req, res) => {
   res.send('Server is running');
 });
 
-// Socket.IO connection handling
-io.on('connection', (socket) => {
-  console.log('A user connected');
-  socket.on('disconnect', () => {
-    console.log('User disconnected');
-  });
-});
-
-// Single server startup sequence
 const PORT = process.env.PORT || 3000;
 
-// Connect to database and start server
 const startServer = async () => {
   try {
-    await connectDB(); // First connect to database
+    await connectDB();
     console.log('Successfully connected to MongoDB');
     
-    // Then start the server
     httpServer.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);
+      console.log(`Allowed origins: ${allowedOrigins.join(', ')}`);
     });
   } catch (error) {
     console.error('Server startup failed:', error);
-    process.exit(1); // Exit if we can't start properly
+    process.exit(1);
   }
 };
 
-// Initialize everything
 startServer();
