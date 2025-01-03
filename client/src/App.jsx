@@ -19,7 +19,7 @@ function App() {
         {/* <Route path="/jam/:sessionId/waiting-room" element={<WaitingRoom/>}/> */}
         <Route path="/waiting-room/:sessionId" element={<WaitingRoomContainer />} />
         <Route path="/join" element={<JoinSession />} />
-        <Route path="/waiting-room/host/:sessionId" element={<HostWaitingRoom />} />
+        <Route path="/waiting-room/:sessionId" element={<HostWaitingRoom />} />
         <Route path="/waiting-room/player/:sessionId" element={<PlayerWaitingRoom />} />
         <Route path="/test-waiting-room/:sessionId" element={<TestWaitingRoom />} />
       </Routes>

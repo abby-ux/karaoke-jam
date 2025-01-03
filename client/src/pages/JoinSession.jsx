@@ -73,10 +73,17 @@ const JoinSession = () => {
         query: { sessionId: jamcode }
       });
   
-      socket.emit('PARTICIPANT_JOINED', {
-        participantId: data.participantId,
-        name: name.trim(),
-        joinedAt: new Date()
+    //   socket.emit('PARTICIPANT_JOINED', {
+    //     participantId: data.participantId,
+    //     name: name.trim(),
+    //     joinedAt: new Date()
+    //   });
+    socket.emit('join_session', jamcode, (response) => {
+        if (response.success) {
+          console.log(`Joined session with ${response.participantCount} participants`);
+        } else {
+          console.error('Failed to join session:', response.error);
+        }
       });
 
       // Redirect to waiting room or game page

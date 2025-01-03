@@ -33,27 +33,65 @@ const WaitingRoomContainer = () => {
   const [sessionData, setSessionData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [userData, setUserData] = useState(null);
+  const [userRole, setUserRole] = useState(null);
 
+  // First effect: Load user data and verify role
   useEffect(() => {
-    try {
-      const storedUserData = JSON.parse(localStorage.getItem('userData'));
-      const storedSessionData = JSON.parse(localStorage.getItem('sessionData'));
-      
-      if (!storedUserData || !storedSessionData) {
-        navigate('/join');
-        return;
-      }
+    const verifyUserAndRole = async () => {
+      try {
+        // Get stored user data
+        const storedUserData = JSON.parse(localStorage.getItem('userData'));
+        if (!storedUserData?.participantId) {
+          navigate('/join');
+          return;
+        }
 
-      setUserData(storedUserData);
-      setSessionData(storedSessionData);
-      setIsLoading(false);
-    } catch (err) {
-      console.error('Error loading stored data:', err);
-      setError('Failed to load session data. Please try joining again.');
-      setIsLoading(false);
-    }
-  }, [navigate]);
+        // Fetch session data to verify role
+        const response = await fetch(`/api/jams/${sessionId}`);
+        if (!response.ok) {
+          throw new Error('Failed to fetch session data');
+        }
+        
+        const data = await response.json();
+        
+        // Determine if the current user is actually the host by comparing participantId
+        const isActuallyHost = data.host.participantId === storedUserData.participantId;
+        
+        // Update localStorage with verified role status
+        const verifiedUserData = {
+          ...storedUserData,
+          isHost: isActuallyHost
+        };
+        localStorage.setItem('userData', JSON.stringify(verifiedUserData));
+        
+        // Transform session data
+        const transformedData = {
+          sessionId: data._id,
+          name: data.name,
+          host: {
+            participantId: data.host.participantId,
+            name: data.host.name
+          },
+          participants: data.participants || [],
+          status: data.status,
+          config: data.config,
+          joinUrl: data.joinUrl,
+          qrCode: data.qrCode
+        };
+
+        setSessionData(transformedData);
+        setUserRole(isActuallyHost ? 'host' : 'player');
+        
+      } catch (err) {
+        console.error('Error verifying user role:', err);
+        setError(err.message);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    verifyUserAndRole();
+  }, [sessionId, navigate]);
 
   const handleParticipantJoin = (newParticipant) => {
     setSessionData(prev => {
@@ -77,7 +115,7 @@ const WaitingRoomContainer = () => {
 
   if (isLoading) return <LoadingSpinner />;
   if (error) return {error}
-  if (!sessionData || !userData) {
+  if (!sessionData || !userRole) {
     return (
       <div className="min-h-screen flex items-center justify-center p-4">
         <div className="text-gray-600 text-center">
@@ -90,18 +128,20 @@ const WaitingRoomContainer = () => {
     );
   }
 
-  return userData.isHost ? (
-    <HostWaitingRoom
-      sessionData={sessionData}
-      onParticipantJoin={handleParticipantJoin}
-      onStartJam={() => navigate(`/jam/${sessionId}`)}
-    />
-  ) : (
-    <PlayerWaitingRoom
-      sessionData={sessionData}
-      onParticipantJoin={handleParticipantJoin}
-    />
-  );
+  if (!isLoading && sessionData && userRole) {
+    return userRole === 'host' ? (
+      <HostWaitingRoom
+        sessionData={sessionData}
+        onParticipantJoin={handleParticipantJoin}
+        onStartJam={() => navigate(`/jam/${sessionId}`)}
+      />
+    ) : (
+      <PlayerWaitingRoom
+        sessionData={sessionData}
+        onParticipantJoin={handleParticipantJoin}
+      />
+    );
+  }
 };
 
 export default WaitingRoomContainer;
