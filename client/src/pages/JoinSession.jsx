@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState,  } from 'react';
 import io from "socket.io-client";
+// import { socket, joinJamRoom } from '../services/socket';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -9,6 +10,8 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 // This component handles the join session page where users can enter their name
 // to join an existing jam session
 const JoinSession = () => {
+
+
   // Get the sessionId from the URL parameters
 //   const { sessionId } = useParams();
   const navigate = useNavigate();
@@ -18,6 +21,7 @@ const JoinSession = () => {
   const [jamcode, setJamcode] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+
 
   // Handle form submission
   const handleSubmit = async (e) => {
@@ -68,26 +72,46 @@ const JoinSession = () => {
         throw new Error(data.message || 'Failed to join session');
       }
 
-      // Initialize socket connection
-        const socket = io('http://localhost:3000', {
-        query: { sessionId: jamcode }
-      });
-  
-    //   socket.emit('PARTICIPANT_JOINED', {
-    //     participantId: data.participantId,
-    //     name: name.trim(),
-    //     joinedAt: new Date()
-    //   });
-    socket.emit('join_session', jamcode, (response) => {
-        if (response.success) {
-          console.log(`Joined session with ${response.participantCount} participants`);
-        } else {
-          console.error('Failed to join session:', response.error);
+      // Store user data
+      const userData = {
+        participantId: data.participantId,
+        name: name.trim(),
+        isHost: false
+      };
+      localStorage.setItem('userData', JSON.stringify(userData));
+
+      // Create socket connection
+      const socket = io('http://localhost:3000', {
+        query: { 
+          sessionId: jamcode,
+          userData: JSON.stringify(userData) // Pass user data with connection
         }
       });
 
-      // Redirect to waiting room or game page
-      navigate(`/waiting-room/${jamcode}`);
+      // Wait for socket connection before proceeding
+      socket.on('connect', () => {
+        console.log('Socket connected, joining session...');
+        
+        // Join the session room
+        socket.emit('join_session', {
+          sessionId: jamcode,
+          userData: userData
+        }, (response) => {
+          if (response.success) {
+            console.log(`Successfully joined session`);
+            // Only navigate after successful socket connection
+            navigate(`/waiting-room/${jamcode}`);
+          } else {
+            setError('Failed to join session room');
+            console.error('Join session error:', response.error);
+          }
+        });
+      });
+
+      socket.on('connect_error', (error) => {
+        console.error('Socket connection error:', error);
+        setError('Failed to connect to game server');
+      });
     } catch (err) {
       setError(err.message);
     } finally {

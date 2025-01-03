@@ -9,49 +9,38 @@ export default function setupSocketServer(io) {
     
     console.log('New client connected:', socket.id);
 
-    // Handle initial connection with session ID
-    socket.on('join_session', async (sessionId, callback) => {
+    // Handle joining a session
+    socket.on('join_session', async (sessionId, userData, callback) => {
       try {
-        // Leave previous session if exists
-        if (currentSessionId) {
-          await leaveSession(socket, currentSessionId);
-        }
+        console.log('joining session...')
+        // Join the room for this session
+        socket.join(sessionId);
+        
+        // Get the number of participants in this room
+        const room = io.sockets.adapter.rooms.get(sessionId);
+        const participantCount = room ? room.size : 0;
 
-        // Join new session
-        currentSessionId = sessionId;
-        const roomName = `jam:${sessionId}`;
-        
-        await socket.join(roomName);
-        
-        // Initialize session in our Map if it doesn't exist
-        if (!activeSessions.has(sessionId)) {
-          activeSessions.set(sessionId, new Set());
-        }
-        
-        // Add this socket to the session
-        activeSessions.get(sessionId).add(socket.id);
-
-        console.log(`Client ${socket.id} joined session ${sessionId}`);
-        
-        // Notify other participants
-        socket.to(roomName).emit('message', {
-          type: 'PARTICIPANT_JOINED',
-          socketId: socket.id,
-          timestamp: Date.now()
+        // Send success response back to the client
+        callback({
+          success: true,
+          participantCount
         });
 
-        // Send confirmation to the client
-        if (callback) {
-          callback({
-            success: true,
-            participantCount: activeSessions.get(sessionId).size
-          });
-        }
+        // Broadcast to all clients in the session except the sender
+        // socket.to(sessionId).emit('message', {
+          socket.broadcast.emit('message', {
+          type: 'PARTICIPANT_JOINED',
+          participant: userData, // This will be set when joining
+        });
+
+        socket.broadcast.emit('PARTICIPANT_JOINED', )
+
       } catch (error) {
-        console.error('Error joining session:', error);
-        if (callback) {
-          callback({ success: false, error: 'Failed to join session' });
-        }
+        console.error('Error in join_session:', error);
+        callback({
+          success: false,
+          error: 'Failed to join session'
+        });
       }
     });
 
@@ -59,13 +48,14 @@ export default function setupSocketServer(io) {
     socket.on('PARTICIPANT_JOINED', (participant) => {
       if (!currentSessionId) return;
       
-      const roomName = `jam:${currentSessionId}`;
+      const roomName = `jam:${sessionId}`;
       // Broadcast to all clients in the room except the sender
-      socket.to(roomName).emit('message', {
-        type: 'PARTICIPANT_JOINED',
-        participant,
-        timestamp: Date.now()
-      });
+      // socket.to(roomName).emit('message', {
+      //   type: 'PARTICIPANT_JOINED',
+      //   participant,
+      //   timestamp: Date.now()
+      // });
+      socket.broadcast.emit('PARTICIPANT_JOINED', userData);
       
       console.log(`Participant joined event broadcasted in ${currentSessionId}`);
     });
