@@ -13,21 +13,16 @@ dotenv.config();
 const app = express();
 const httpServer = createServer(app);
 
-// Define allowed origins
 const allowedOrigins = [
-  'http://localhost:5173',  // Vite default
-  'http://localhost:5174',  // Alternative Vite port
-  'http://127.0.0.1:5173', // Local IP variant
-  process.env.FRONTEND_URL // From environment variable if set
-].filter(Boolean); // Remove any undefined values
+  'http://localhost:5173',
+  'http://localhost:5174',
+  'http://127.0.0.1:5173',
+  process.env.FRONTEND_URL
+].filter(Boolean);
 
-// Configure CORS with specific options
 const corsOptions = {
   origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return callback(null, true);
-    
-    if (allowedOrigins.indexOf(origin) !== -1) {
+    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
       callback(null, true);
     } else {
       callback(new Error('Not allowed by CORS'));
@@ -39,10 +34,8 @@ const corsOptions = {
   optionsSuccessStatus: 200
 };
 
-// Apply CORS middleware with options
 app.use(cors(corsOptions));
 
-// Initialize Socket.IO with matching CORS configuration
 const io = new Server(httpServer, {
   cors: {
     origin: allowedOrigins,
@@ -54,26 +47,21 @@ const io = new Server(httpServer, {
   pingInterval: 25000
 });
 
-// Set up remaining middleware
 app.use(express.json());
 
-// Initialize socket server
 const { broadcastToJam } = setupSocketServer(io);
 
-// Set up routes with socket broadcast capability
 app.use('/api/jams', (req, res, next) => {
   req.broadcastToJam = broadcastToJam;
   next();
 }, jamRoutes);
 
-// Health check endpoint
 app.get('/health', (req, res) => {
   res.send('Server is running');
 });
 
 const PORT = process.env.PORT || 3000;
 
-// Start server with proper error handling
 const startServer = async () => {
   try {
     await connectDB();
@@ -81,7 +69,7 @@ const startServer = async () => {
     
     httpServer.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);
-      console.log(`Allowed origins for CORS: ${allowedOrigins.join(', ')}`);
+      console.log(`Allowed origins: ${allowedOrigins.join(', ')}`);
     });
   } catch (error) {
     console.error('Server startup failed:', error);

@@ -25,6 +25,8 @@ const PlayerWaitingRoom = ({ sessionData, onParticipantJoin }) => {
   const [wsStatus, setWsStatus] = useState('connecting');
 
   useEffect(() => {
+    let socket;
+
     // Initialize the component with session data
     if (sessionData) {
       try {
@@ -39,75 +41,85 @@ const PlayerWaitingRoom = ({ sessionData, onParticipantJoin }) => {
       }
     }
     
-    // Set up WebSocket connection for real-time updates
-    const setupRealTimeUpdates = () => {
+    // Set up Socket.IO connection for real-time updates
+    const setupRealTimeUpdates = async () => {
       if (!sessionData?.sessionId) {
         setError('No session ID available');
-        return () => {};
+        return;
       }
 
-      const ws = new WebSocket(`ws://localhost:3000/jams/${sessionData.sessionId}`);
-      
-      // WebSocket event handlers
-      ws.onopen = () => {
-        console.log('WebSocket connection established');
-        setWsStatus('connected');
-      };
+      try {
+        const { io } = await import('socket.io-client');
+        socket = io('http://localhost:3000', {
+          query: { sessionId: sessionData.sessionId }
+        });
+        
+        // Socket.IO event handlers
+        socket.on('connect', () => {
+          console.log('Socket.IO connection established');
+          setWsStatus('connected');
+          
+          // Join the specific room for this session
+          socket.emit('joinRoom', sessionData.sessionId);
+        });
 
-      ws.onclose = () => {
-        console.log('WebSocket connection closed');
-        setWsStatus('disconnected');
-      };
+        socket.on('disconnect', () => {
+          console.log('Socket.IO connection closed');
+          setWsStatus('disconnected');
+        });
 
-      ws.onerror = (error) => {
-        console.error('WebSocket error:', error);
-        setWsStatus('error');
-        setError('Lost connection to the server');
-      };
-      
-      ws.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          switch (data.type) {
-            case 'PARTICIPANT_JOINED':
-              setParticipants(prevParticipants => {
-                // Check if participant already exists to prevent duplicates
-                const exists = prevParticipants.some(
-                  p => p.participantId === data.participant.participantId
-                );
-                if (exists) return prevParticipants;
-                
-                const newParticipants = [...prevParticipants, data.participant];
-                if (onParticipantJoin) {
-                  onParticipantJoin(data.participant);
-                }
-                return newParticipants;
-              });
-              break;
+        socket.on('connect_error', (error) => {
+          console.error('Socket.IO connection error:', error);
+          setWsStatus('error');
+          setError('Lost connection to the server');
+        });
+        
+        socket.on('message', (data) => {
+          try {
+            switch (data.type) {
+              case 'PARTICIPANT_JOINED':
+                setParticipants(prevParticipants => {
+                  // Check if participant already exists to prevent duplicates
+                  const exists = prevParticipants.some(
+                    p => p.participantId === data.participant.participantId
+                  );
+                  if (exists) return prevParticipants;
+                  
+                  const newParticipants = [...prevParticipants, data.participant];
+                  if (onParticipantJoin) {
+                    onParticipantJoin(data.participant);
+                  }
+                  return newParticipants;
+                });
+                break;
 
-            case 'JAM_STARTED':
-              // Handle jam started event - could navigate to the jam page
-              window.location.href = `/jam/${sessionData.sessionId}`;
-              break;
+              case 'JAM_STARTED':
+                // Handle jam started event - could navigate to the jam page
+                window.location.href = `/jam/${sessionData.sessionId}`;
+                break;
 
-            default:
-              console.log('Unhandled websocket message type:', data.type);
+              default:
+                console.log('Unhandled socket message type:', data.type);
+            }
+          } catch (error) {
+            console.error('Error processing socket message:', error);
+            setError('Error processing server update');
           }
-        } catch (error) {
-          console.error('Error processing WebSocket message:', error);
-          setError('Error processing server update');
-        }
-      };
-      
-      // Return cleanup function
-      return () => {
-        if (ws.readyState === WebSocket.OPEN) {
-          ws.close();
-        }
-      };
+        });
+      } catch (error) {
+        console.error('Error setting up Socket.IO:', error);
+        setError('Failed to establish connection');
+      }
     };
+
+    setupRealTimeUpdates();
     
-    return setupRealTimeUpdates();
+    // Cleanup function
+    return () => {
+      if (socket) {
+        socket.disconnect();
+      }
+    };
   }, [sessionData, onParticipantJoin]);
 
   // Show error state if something goes wrong
@@ -181,7 +193,7 @@ const PlayerWaitingRoom = ({ sessionData, onParticipantJoin }) => {
   );
 };
 
-// PropType definitions for proper type checking
+// PropTypes definitions remain the same
 PlayerWaitingRoom.propTypes = {
   sessionData: PropTypes.shape({
     sessionId: PropTypes.string.isRequired,

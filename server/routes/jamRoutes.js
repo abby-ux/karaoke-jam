@@ -34,9 +34,11 @@ router.post('/create', async (req, res) => {
         // ex) export async function createNewJam(hostData, configData) { ......
 
 
-        const { hostName, config } = req.body;
+        const { host, config } = req.body;
+        // console.log(host);
         const hostParticipantId = uuidv4();
-        
+        const hostName = host.name;
+        // console.log(hostName);
 
         // Create a new jam session
         const jam = new Jam({
@@ -69,6 +71,18 @@ router.post('/create', async (req, res) => {
 
         // Save the jam to the database
         await jam.save();
+
+        console.log("jam created:");
+        console.log(jam);
+
+        console.log("Data sent back:")
+        console.log({
+            hostId: hostParticipantId,
+            sessionId: jam._id,
+            joinUrl,
+            qrCode,
+            config: jam.config
+        });
 
         // Send back the necessary data
         res.status(201).json({

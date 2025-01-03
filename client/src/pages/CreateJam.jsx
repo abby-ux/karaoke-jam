@@ -1,43 +1,31 @@
 // src/components/CreateJam.jsx
 import { useNavigate } from 'react-router-dom';
+import io from "socket.io-client";
 import { useState } from 'react';
 import axios from 'axios';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
 const CreateJam = () => {
     const navigate = useNavigate();
+    const [error] = useState('');
+    const [isLoading] = useState('');
     const [hostName, setHostName] = useState('');
-    const [error, setError] = useState('');
-    const [isLoading, setIsLoading] = useState(false);
     const [config, setConfig] = useState({
         timeBetweenSongs: 15,
         playlistId: '',
         singersPerRound: 1
     });
 
-    // Configure axios with proper defaults
-    const api = axios.create({
-        baseURL: 'http://localhost:3000',
-        withCredentials: true,
-        timeout: 10000,
-        headers: {
-            'Content-Type': 'application/json',
-        }
-    });
-
     const handleCreateJam = async (e) => {
         e.preventDefault();
-        setError('');
-        setIsLoading(true);
         
         if (!hostName.trim()) {
-            setError('Please enter your name');
-            setIsLoading(false);
+            alert('Please enter your name');
             return;
         }
 
         try {
-            const response = await api.post('/api/jams/create', {
+            const response = await axios.post('http://localhost:3000/api/jams/create', {
                 host: {
                     name: hostName,
                     isHost: true,
@@ -51,44 +39,53 @@ const CreateJam = () => {
 
             const { hostId, sessionId, joinUrl, qrCode } = response.data;
 
-            localStorage.setItem('sessionData', JSON.stringify({
-                hostId,
-                sessionId,
-                hostName,
-                joinUrl,
-                qrCode,
-                config
-            }));
-            
-            localStorage.setItem('userData', JSON.stringify({
+            // Store user data
+            const userData = {
                 participantId: hostId,
                 name: hostName,
                 isHost: true
-            }));
+            };
+
+            // Store session data with complete structure matching PropTypes
+            const sessionData = {
+                sessionId,
+                name: `${hostName}'s Jam`,
+                host: {
+                    participantId: hostId,
+                    name: hostName
+                },
+                participants: [{
+                    participantId: hostId,
+                    name: hostName,
+                    joinedAt: new Date()
+                }],
+                config,
+                joinUrl,
+                qrCode
+            };
+
+            localStorage.setItem('userData', JSON.stringify(userData));
+            localStorage.setItem('sessionData', JSON.stringify(sessionData));
+
+
+            // Initialize socket connection
+        const socket = io('http://localhost:3000', {
+            query: { sessionId: sessionData.sessionId }
+          });
+      
+          socket.emit('PARTICIPANT_JOINED', {
+            participantId: userData.participantId,
+            name: name.trim(),
+            joinedAt: new Date()
+          });
+
 
             navigate(`/waiting-room/${sessionId}`);
         } catch (error) {
+            alert('Failed to create jam session. Please try again.');
             console.error('Error creating jam:', error);
-            
-            let errorMessage = 'Failed to create jam session. ';
-            
-            if (error.response) {
-                // Server responded with an error
-                errorMessage += error.response.data.error || error.response.statusText;
-            } else if (error.request) {
-                // Request was made but no response received
-                errorMessage += 'Could not reach the server. Please check your connection.';
-            } else {
-                // Error in request setup
-                errorMessage += error.message;
-            }
-            
-            setError(errorMessage);
-        } finally {
-            setIsLoading(false);
         }
     };
-
     return (
         <div className="container mx-auto px-4 py-8">
             <form onSubmit={handleCreateJam} className="max-w-lg mx-auto">
