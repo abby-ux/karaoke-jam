@@ -1,40 +1,69 @@
 // server/socket/socketServer.js
 
 export default function setupSocketServer(io) {
-  // Using a Map to store active sessions and their participants
+  // Store active sessions and their participants
+  // Map structure: sessionId -> Map<socketId, participantData>
   const activeSessions = new Map();
 
   io.on('connection', (socket) => {
+    // Track current session info for this socket
     let currentSessionId = null;
+    let currentUserData = null;
     
     console.log('New client connected:', socket.id);
 
-    // Handle joining a session
-    socket.on('join_session', async (sessionId, userData, callback) => {
+    // Handle initial connection data from query parameters
+    const { sessionId, userData } = socket.handshake.query;
+    if (sessionId && userData) {
       try {
-        console.log('joining session...')
-        // Join the room for this session
-        socket.join(sessionId);
+        currentUserData = JSON.parse(userData);
+        currentSessionId = sessionId;
+        console.log('Connection data:', { currentUserData, currentSessionId });
         
-        // Get the number of participants in this room
-        const room = io.sockets.adapter.rooms.get(sessionId);
-        const participantCount = room ? room.size : 0;
+        // Create new session entry if it doesn't exist
+        if (!activeSessions.has(sessionId)) {
+          activeSessions.set(sessionId, new Map());
+        }
+        
+        // Add participant to session
+        activeSessions.get(sessionId).set(socket.id, currentUserData);
+      } catch (error) {
+        console.error('Error processing connection data:', error);
+      }
+    }
 
-        // Send success response back to the client
+    // Handle explicit session join requests
+    socket.on('join_session', async (data, callback) => {
+      try {
+        const roomName = `jam:${data.sessionId}`;
+        await socket.join(roomName);
+        console.log(`Socket ${socket.id} joining session ${data.sessionId}`);
+        
+        // Update tracking information
+        currentSessionId = data.sessionId;
+        currentUserData = data.userData;
+        
+        // Initialize session if needed
+        if (!activeSessions.has(currentSessionId)) {
+          activeSessions.set(currentSessionId, new Map());
+        }
+        
+        // Store participant data
+        activeSessions.get(currentSessionId).set(socket.id, currentUserData);
+        
+        // Notify other participants about the new join
+        socket.to(roomName).emit('PARTICIPANT_JOINED', {
+          participant: currentUserData,
+          timestamp: Date.now()
+        });
+        
+        // Send success response with current session state
+        const participants = Array.from(activeSessions.get(currentSessionId).values());
         callback({
           success: true,
-          participantCount
+          participants,
+          participantCount: participants.length
         });
-
-        // Broadcast to all clients in the session except the sender
-        // socket.to(sessionId).emit('message', {
-          socket.broadcast.emit('message', {
-          type: 'PARTICIPANT_JOINED',
-          participant: userData, // This will be set when joining
-        });
-
-        socket.broadcast.emit('PARTICIPANT_JOINED', )
-
       } catch (error) {
         console.error('Error in join_session:', error);
         callback({
@@ -44,76 +73,75 @@ export default function setupSocketServer(io) {
       }
     });
 
-    // Handle participant joined event
+    // Handle when a participant broadcasts their join
     socket.on('PARTICIPANT_JOINED', (participant) => {
       if (!currentSessionId) return;
       
-      const roomName = `jam:${sessionId}`;
-      // Broadcast to all clients in the room except the sender
-      // socket.to(roomName).emit('message', {
-      //   type: 'PARTICIPANT_JOINED',
-      //   participant,
-      //   timestamp: Date.now()
-      // });
-      socket.broadcast.emit('PARTICIPANT_JOINED', userData);
+      const roomName = `jam:${currentSessionId}`;
+      socket.to(roomName).emit('PARTICIPANT_JOINED', {
+        participant: currentUserData,
+        timestamp: Date.now()
+      });
       
-      console.log(`Participant joined event broadcasted in ${currentSessionId}`);
+      console.log(`Participant join broadcasted in session ${currentSessionId}`);
     });
 
-    // Handle jam started event
+    // Handle when host starts the jam
     socket.on('JAM_STARTED', (data) => {
       if (!currentSessionId) return;
       
       const roomName = `jam:${currentSessionId}`;
-      // Broadcast to all clients in the room including the sender
-      io.in(roomName).emit('message', {
-        type: 'JAM_STARTED',
+      io.in(roomName).emit('JAM_STARTED', {
         ...data,
         timestamp: Date.now()
       });
       
-      console.log(`Jam started event broadcasted in ${currentSessionId}`);
+      console.log(`Jam started in session ${currentSessionId}`);
     });
 
-    // Handle disconnection
+    // Handle socket disconnection
     socket.on('disconnect', async () => {
       if (currentSessionId) {
-        await leaveSession(socket, currentSessionId);
+        await handleLeaveSession(socket, currentSessionId);
       }
       console.log('Client disconnected:', socket.id);
     });
   });
 
-  // Helper function to handle leaving a session
-  async function leaveSession(socket, sessionId) {
+  // Helper function to manage session departure
+  async function handleLeaveSession(socket, sessionId) {
     const roomName = `jam:${sessionId}`;
     
-    // Remove socket from our tracking Map
+    // Get participant data before removal
     const sessionParticipants = activeSessions.get(sessionId);
+    const leavingParticipant = sessionParticipants?.get(socket.id);
+    
     if (sessionParticipants) {
+      // Remove participant from tracking
       sessionParticipants.delete(socket.id);
       
       // Clean up empty sessions
       if (sessionParticipants.size === 0) {
         activeSessions.delete(sessionId);
       }
+      
+      // Notify others about departure
+      if (leavingParticipant) {
+        socket.to(roomName).emit('PARTICIPANT_LEFT', {
+          participantId: leavingParticipant.participantId,
+          name: leavingParticipant.name,
+          timestamp: Date.now()
+        });
+      }
     }
 
-    // Notify other participants
-    socket.to(roomName).emit('message', {
-      type: 'PARTICIPANT_LEFT',
-      participantId: socket.id,
-      timestamp: Date.now()
-    });
-
-    // Leave the socket.io room
+    // Remove socket from room
     await socket.leave(roomName);
-    
     console.log(`Client ${socket.id} left session ${sessionId}`);
   }
 
-  // Utility function to broadcast to all participants in a session
-  function broadcastToJam(sessionId, eventData) {
+  // Utility function to broadcast to all session participants
+  function broadcastToSession(sessionId, eventData) {
     const roomName = `jam:${sessionId}`;
     io.to(roomName).emit('message', {
       ...eventData,
@@ -121,8 +149,9 @@ export default function setupSocketServer(io) {
     });
   }
 
+  // Return public interface
   return {
-    broadcastToJam,
+    broadcastToSession,
     getSessionParticipantCount: (sessionId) => 
       activeSessions.get(sessionId)?.size ?? 0
   };
