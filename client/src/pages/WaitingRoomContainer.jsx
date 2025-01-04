@@ -3,6 +3,8 @@ import { useNavigate, useParams } from 'react-router-dom';
 import PropTypes from 'prop-types';
 import HostWaitingRoom from './HostWaitingRoom';
 import PlayerWaitingRoom from './PlayerWaitingRoom';
+import io from "socket.io-client";
+
 
 // LoadingSpinner component for a better loading state presentation
 const LoadingSpinner = () => (
@@ -34,6 +36,7 @@ const WaitingRoomContainer = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [userData, setUserData] = useState(null);
+  const socket = io.connect("http://localhost:3000");
 
   // First effect: Load user data from localStorage
   useEffect(() => {
@@ -106,6 +109,14 @@ const WaitingRoomContainer = () => {
 
     fetchSessionData();
   }, [sessionId]);
+
+  
+
+  useEffect(() => {
+    socket.on("receive_player", (data) => {
+      handleParticipantJoin(data.message);
+    });
+  }, [socket]);
 
   // Handler for participant updates
   const handleParticipantJoin = (newParticipant) => {

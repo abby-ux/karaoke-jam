@@ -3,6 +3,7 @@ import PropTypes from 'prop-types';
 import { UsersRound } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
+
 // A reusable component to display individual participants
 const ParticipantRow = ({ participant, isHost }) => (
   <div className="p-3 bg-gray-50 rounded-lg flex items-center justify-between">
@@ -18,13 +19,13 @@ const ParticipantRow = ({ participant, isHost }) => (
   </div>
 );
 
-const HostWaitingRoom = ({ sessionData, onParticipantJoin, onStartJam }) => {
+const HostWaitingRoom = ({ sessionData, onParticipantJoin }) => {
   // State management for component
   const [participants, setParticipants] = useState([]);
   const [jamName, setJamName] = useState('');
   const [isStarting, setIsStarting] = useState(false);
-  const [wsStatus, setWsStatus] = useState('connecting');
   const [error, setError] = useState(null);
+  
 
   useEffect(() => {
     // Initialize session data when available
@@ -41,82 +42,9 @@ const HostWaitingRoom = ({ sessionData, onParticipantJoin, onStartJam }) => {
       }
     }
     
-    // Set up WebSocket connection for real-time updates
-    const setupRealTimeUpdates = () => {
-      if (!sessionData?.sessionId) {
-        console.error('No sessionId available for WebSocket connection');
-        setError('Unable to establish real-time connection');
-        return () => {};
-      }
-
-      const ws = new WebSocket(`ws://localhost:3000/jams/${sessionData.sessionId}`);
-      
-      // WebSocket connection event handlers
-      ws.onopen = () => {
-        console.log('WebSocket connection established');
-        setWsStatus('connected');
-        setError(null);  // Clear any previous connection errors
-      };
-
-      ws.onclose = () => {
-        console.log('WebSocket connection closed');
-        setWsStatus('disconnected');
-      };
-
-      ws.onerror = (error) => {
-        console.error('WebSocket error:', error);
-        setWsStatus('error');
-        setError('Lost connection to the server');
-      };
-      
-      // Handle incoming WebSocket messages
-      ws.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          
-          switch (data.type) {
-            case 'PARTICIPANT_JOINED':
-              setParticipants(prevParticipants => {
-                // Check if participant already exists to prevent duplicates
-                const exists = prevParticipants.some(
-                  p => p.participantId === data.participant.participantId
-                );
-                if (exists) return prevParticipants;
-                
-                // Add new participant and notify parent component
-                const newParticipants = [...prevParticipants, data.participant];
-                if (onParticipantJoin) {
-                  onParticipantJoin(data.participant);
-                }
-                return newParticipants;
-              });
-              break;
-
-            case 'PARTICIPANT_LEFT':
-              setParticipants(prevParticipants => 
-                prevParticipants.filter(p => p.participantId !== data.participantId)
-              );
-              break;
-
-            default:
-              console.log('Unhandled websocket message type:', data.type);
-          }
-        } catch (error) {
-          console.error('Error processing WebSocket message:', error);
-          setError('Error processing server update');
-        }
-      };
-      
-      // Return cleanup function to close WebSocket on unmount
-      return () => {
-        if (ws.readyState === WebSocket.OPEN) {
-          ws.close();
-        }
-      };
-    };
-    
-    return setupRealTimeUpdates();
   }, [sessionData, onParticipantJoin]);
+
+  
 
   // Handle starting the jam session
   const handleStartJam = async () => {
@@ -144,10 +72,7 @@ const HostWaitingRoom = ({ sessionData, onParticipantJoin, onStartJam }) => {
         throw new Error(errorData.message || 'Failed to start jam');
       }
 
-      // Call the onStartJam callback provided by parent
-      if (onStartJam) {
-        onStartJam();
-      }
+      
     } catch (error) {
       console.error('Error starting jam:', error);
       setError(error.message || 'Failed to start the jam session');
@@ -162,19 +87,7 @@ const HostWaitingRoom = ({ sessionData, onParticipantJoin, onStartJam }) => {
         <div className="p-6">
           <h2 className="text-2xl font-bold text-center mb-6">{jamName}</h2>
           
-          {/* Connection status indicator */}
-          {wsStatus !== 'connected' && (
-            <div className="mb-4 text-center text-sm">
-              <span className={`inline-block w-2 h-2 rounded-full mr-2 ${
-                wsStatus === 'connecting' ? 'bg-yellow-400' :
-                wsStatus === 'error' ? 'bg-red-500' :
-                'bg-gray-400'
-              }`} />
-              {wsStatus === 'connecting' ? 'Connecting to server...' :
-               wsStatus === 'error' ? 'Connection error' :
-               'Disconnected from server'}
-            </div>
-          )}
+          
 
           {/* Error display */}
           {error && (

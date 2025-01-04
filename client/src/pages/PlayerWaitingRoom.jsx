@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import { UsersRound } from 'lucide-react';
+import io from "socket.io-client";
 
 // A reusable component for the participant row to keep the code DRY
 const ParticipantRow = ({ participant, isHost }) => (
@@ -22,7 +23,22 @@ const PlayerWaitingRoom = ({ sessionData, onParticipantJoin }) => {
   const [participants, setParticipants] = useState([]);
   const [jamName, setJamName] = useState('');
   const [error, setError] = useState(null);
-  const [wsStatus, setWsStatus] = useState('connecting');
+  const [playerName, setPlayerName] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const jam = sessionData.sessionId;
+
+  const socket = io.connect("http://localhost:3000");
+
+  const handleAddPlayer = () => {
+    socket.emit("add_player", { playerName, jam });
+  };
+
+  // added to main container
+//   useEffect(() => {
+    // socket.on("receive_message", (data) => {
+    //     handleParticipantJoin(data.message);
+    //   });
+    // }, [socket]);
 
   useEffect(() => {
     // Initialize the component with session data
@@ -39,75 +55,6 @@ const PlayerWaitingRoom = ({ sessionData, onParticipantJoin }) => {
       }
     }
     
-    // Set up WebSocket connection for real-time updates
-    const setupRealTimeUpdates = () => {
-      if (!sessionData?.sessionId) {
-        setError('No session ID available');
-        return () => {};
-      }
-
-      const ws = new WebSocket(`ws://localhost:3000/jams/${sessionData.sessionId}`);
-      
-      // WebSocket event handlers
-      ws.onopen = () => {
-        console.log('WebSocket connection established');
-        setWsStatus('connected');
-      };
-
-      ws.onclose = () => {
-        console.log('WebSocket connection closed');
-        setWsStatus('disconnected');
-      };
-
-      ws.onerror = (error) => {
-        console.error('WebSocket error:', error);
-        setWsStatus('error');
-        setError('Lost connection to the server');
-      };
-      
-      ws.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          switch (data.type) {
-            case 'PARTICIPANT_JOINED':
-              setParticipants(prevParticipants => {
-                // Check if participant already exists to prevent duplicates
-                const exists = prevParticipants.some(
-                  p => p.participantId === data.participant.participantId
-                );
-                if (exists) return prevParticipants;
-                
-                const newParticipants = [...prevParticipants, data.participant];
-                if (onParticipantJoin) {
-                  onParticipantJoin(data.participant);
-                }
-                return newParticipants;
-              });
-              break;
-
-            case 'JAM_STARTED':
-              // Handle jam started event - could navigate to the jam page
-              window.location.href = `/jam/${sessionData.sessionId}`;
-              break;
-
-            default:
-              console.log('Unhandled websocket message type:', data.type);
-          }
-        } catch (error) {
-          console.error('Error processing WebSocket message:', error);
-          setError('Error processing server update');
-        }
-      };
-      
-      // Return cleanup function
-      return () => {
-        if (ws.readyState === WebSocket.OPEN) {
-          ws.close();
-        }
-      };
-    };
-    
-    return setupRealTimeUpdates();
   }, [sessionData, onParticipantJoin]);
 
   // Show error state if something goes wrong
@@ -133,20 +80,25 @@ const PlayerWaitingRoom = ({ sessionData, onParticipantJoin }) => {
         <div className="p-6">
           <h2 className="text-2xl font-bold text-center mb-6">{jamName}</h2>
           
-          {/* Connection status indicator */}
-          {wsStatus !== 'connected' && (
-            <div className="mb-4 text-center text-sm">
-              <span className={`inline-block w-2 h-2 rounded-full mr-2 ${
-                wsStatus === 'connecting' ? 'bg-yellow-400' :
-                wsStatus === 'error' ? 'bg-red-500' :
-                'bg-gray-400'
-              }`} />
-              {wsStatus === 'connecting' ? 'Connecting to server...' :
-               wsStatus === 'error' ? 'Connection error' :
-               'Disconnected from server'}
-            </div>
-          )}
-          
+          <form onSubmit={handleAddPlayer} className="max-w-lg mx-auto">
+          <div>
+                        <label className="block text-sm font-medium text-gray-700">
+                            Your Name
+                        </label>
+                        <input
+                            type="text"
+                            value={playerName}
+                            onChange={(e) => setPlayerName(e.target.value)}
+                            required
+                            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm"
+                            placeholder="Enter your name"
+                            disabled={isLoading}
+                        />
+                    </div>
+          </form>
+      <button onClick={handleAddPlayer}> Add Player Name </button>
+
+
           {/* Participants list */}
           <div className="mt-8 space-y-4">
             <div className="flex items-center space-x-2">

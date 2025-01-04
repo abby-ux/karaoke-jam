@@ -4,6 +4,7 @@ import { Card, CardHeader, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import io from "socket.io-client";
 
 // This component handles the join session page where users can enter their name
 // to join an existing jam session
@@ -17,6 +18,8 @@ const JoinSession = () => {
   const [jamcode, setJamcode] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+
+  const socket = io.connect("http://localhost:3000");
 
   // Handle form submission
   const handleSubmit = async (e) => {
@@ -67,6 +70,8 @@ const JoinSession = () => {
         throw new Error(data.message || 'Failed to join session');
       }
 
+     socket.emit("join_jam", { sessionId: jamcode });
+
       // Redirect to waiting room or game page
       navigate(`/waiting-room/${jamcode}`);
     } catch (err) {
@@ -75,6 +80,7 @@ const JoinSession = () => {
       setIsLoading(false);
     }
   };
+
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">

@@ -15,6 +15,7 @@ function App() {
         <Route path="/create-jam/setup" element={<CreateJam />} />
         {/* <Route path="/jam/:sessionId/waiting-room" element={<WaitingRoom/>}/> */}
         <Route path="/waiting-room/:sessionId" element={<WaitingRoomContainer />} />
+        {/* <Route path="/join" element={<JoinSession />} /> */}
         <Route path="/join" element={<JoinSession />} />
       </Routes>
     </Router>
