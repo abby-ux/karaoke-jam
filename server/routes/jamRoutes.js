@@ -143,6 +143,7 @@ router.post('/join-jam', async (req, res) => {
 });
 
 // Route to get jam session details
+// future implement: fix this...
 router.get('/:sessionId', async (req, res) => {
     try {
         const { sessionId } = req.params;
@@ -185,6 +186,8 @@ router.post('/:sessionId/start', async (req, res) => {
         const { hostId } = req.body;  // To verify the request is from the host
 
         const jam = await Jam.findById(sessionId);
+        // console.log('found jam: ');
+        // console.log(jam);
         
         if (!jam) {
             return res.status(404).json({ error: 'Jam session not found' });
