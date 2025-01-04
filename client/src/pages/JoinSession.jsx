@@ -108,6 +108,13 @@ const JoinSession = () => {
         });
       });
 
+      socket.on('session_joined', (response) => {
+        console.log('Session joined:', response);
+        if (response.status === 'success') {
+          navigate(`/waiting-room/${response.sessionId}`);
+        }
+      });
+
       socket.on('connect_error', (error) => {
         console.error('Socket connection error:', error);
         setError('Failed to connect to game server');
