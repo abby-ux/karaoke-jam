@@ -45,7 +45,8 @@ const JoinSession = () => {
     try {
       // Create the new user object
       const newUser = {
-        name: name.trim(),
+        // name: name.trim(),
+        name: null,
         sessionId: jamcode,
         isHost: false,
         joinedAt: new Date().toISOString()
@@ -88,25 +89,31 @@ const JoinSession = () => {
         }
       });
 
-      // Wait for socket connection before proceeding
-      socket.on('connect', () => {
-        console.log('Socket connected, joining session...');
+    //   // Wait for socket connection before proceeding
+    //   socket.on('connect', () => {
+    //     console.log('Socket connected, joining session...');
         
-        // Join the session room
-        socket.emit('join_session', {
-          sessionId: jamcode,
-          userData: userData
-        }, (response) => {
-          if (response.success) {
-            console.log(`Successfully joined session`);
-            // Only navigate after successful socket connection
-            navigate(`/waiting-room/${jamcode}`);
-          } else {
-            setError('Failed to join session room');
-            console.error('Join session error:', response.error);
-          }
-        });
+    //     // Join the session room
+    //     socket.emit('join_session', {
+    //       sessionId: jamcode,
+    //       userData: userData
+    //     }, (response) => {
+    //       if (response.success) {
+    //         console.log(`Successfully joined session`);
+    //         // Only navigate after successful socket connection
+    //         navigate(`/waiting-room/${jamcode}`);
+    //       } else {
+    //         setError('Failed to join session room');
+    //         console.error('Join session error:', response.error);
+    //       }
+    //     });
+    //   });
+    socket.emit('join_session', {
+        sessionId: jamcode,
+        userData: userData
       });
+
+      navigate(`/waiting-room/${jamcode}`);
 
       socket.on('session_joined', (response) => {
         console.log('Session joined:', response);

@@ -25,7 +25,9 @@ const NewWaitingRoom = () => {
 
   // Messages States
   const [message, setMessage] = useState("");
+  const [playerName, setPlayerName] = useState("");
   const [messageReceived, setMessageReceived] = useState([]);
+  const [playerReceived, setPlayerReceived] = useState([]);
 //   const socket = io.connect("http://localhost:3000");
 const [socket, setSocket] = useState(null);
 
@@ -59,6 +61,8 @@ useEffect(() => {
     } else {
       fetchMessageHistory();
     }
+
+    
   }, [sessionId]);
   
   const sendMessage = async () => {
@@ -111,9 +115,51 @@ useEffect(() => {
     }
   };
 
+  const handleEnterName = async () => {
+    if (socket && playerName) {
+        const storedUserData = JSON.parse(localStorage.getItem('userData'));
+        if (!storedUserData?.participantId) {
+            console.error('No user ID found');
+            return;
+          }
+        const newUserData = {
+            participantId: storedUserData.participantId,
+            name: playerName,
+            isHost: false
+        };
+
+        const existingPlayers = localStorage.getItem('playerNameData');
+        let playerArray = [];
+
+        if (existingPlayers) {
+            try {
+                const parsed = JSON.parse(existingPlayers);
+                playerArray = Array.isArray(parsed) ? parsed : [];
+            } catch (error) {
+                console.error('Error parsing messages from localStorage:', error);
+                playerArray = [];
+            }
+
+            const updatedPlayers = [...playerArray, newUserData];
+
+            try {
+                localStorage.setItem('playerNameData', JSON.stringify(updatedPlayers))
+            } catch (error) {
+                console.error('Error saving to localStorage:', error);
+            }
+
+            socket.emit("send_playername", newUserData);
+            setPlayerReceived(updatedPlayers);
+            setPlayerName("");
+        }
+    }
+    
+  }
+
 
 
   useEffect(() => {
+    // if (!sessionId|| socket) return;
     if (!sessionId) return;
 
     // Create a single socket connection
@@ -124,18 +170,53 @@ useEffect(() => {
 
     setSocket(newSocket);
 
+    const storedUserData = JSON.parse(localStorage.getItem('userData'));
+    // Join session with complete user data
+    
+
+    newSocket.on("navigate_to_jam", (data) => {
+        if (data.status === "success") {
+            console.log("Received navigation command");
+            const userData = JSON.parse(localStorage.getItem('userData'));
+            const route = userData.participantId === data.hostParticipantId ? 'host' : '';
+            navigate(`/jam/${data.sessionId}/${route}`);
+        }
+    });
+
     // Set up all event listeners
     newSocket.on("connect", () => {
         console.log("Connected to server");
-        
-        newSocket.emit("join_session", {
-          sessionId,
-          userData: {
-            name: "User Name",
-            joinedAt: new Date()
-          }
-        });
-      });
+
+        if (storedUserData) {
+            newSocket.emit("join_session", {
+              sessionId,
+              userData: {
+                participantId: storedUserData.participantId,
+                name: storedUserData.name,
+                joinedAt: new Date()
+              }
+            });
+        } else {
+            newSocket.emit("join_session", {
+                sessionId,
+                userData: {
+                  name: "User Name",
+                  joinedAt: new Date()
+                }
+              });
+        }
+
+    });
+
+    // Listen for participant updates
+    newSocket.on("participants_updated", (data) => {
+        setParticipants(data.participants);
+        // Also update sessionData if needed
+        setSessionData(prevData => ({
+        ...prevData,
+        participants: data.participants
+        }));
+    });
   
       newSocket.on("receive_message", (data) => {
         setMessageReceived(prevMessages => {
@@ -145,11 +226,37 @@ useEffect(() => {
             return updatedMessages;
           });
       });
+
+      newSocket.on("receive_player", (data) => {
+        setPlayerReceived(prevPlayers => {
+            const updatedPlayers = [...prevPlayers, data];
+            localStorage.setItem('playerNameData', JSON.stringify(updatedPlayers));
+            return updatedPlayers;
+        });
+      });
+
+        newSocket.on("start_jam", (data) => {
+            if (data.status === "success") {
+                navigate(`/jam/${data.sessionId}`);
+            }
+        });
+
+      newSocket.on('jam_joined', (response) => {
+        console.log('jam joined: ', response);
+        if (response.status === 'success') {
+            navigate(`jam/${sessionId}`);
+        }
+      });
   
       // Clean up function
       return () => {
         if (newSocket) {
+          // Explicitly leave the room before disconnecting
+          newSocket.emit("leave_session", { sessionId });
+          newSocket.removeAllListeners();
           newSocket.disconnect();
+          setSocket(null);
+          console.log('NewWaitingRoom socket cleaned up');
         }
       };
     }, [sessionId, navigate]);
@@ -232,12 +339,15 @@ useEffect(() => {
           hostId: sessionData.host.participantId
         })
       });
+      console.log(response);
 
       if (!response.ok) {
         throw new Error('Failed to start jam');
       }
 
-      // Navigation will happen through WebSocket event
+      // Navigation will happen through WebSocket event    
+      socket.emit('start_jam', {sessionId});
+
     } catch (error) {
       console.error('Error starting jam:', error);
       setError(error.message || 'Failed to start the jam session');
@@ -276,15 +386,62 @@ useEffect(() => {
       {/* <button onClick={joinRoom}> Join Room</button> */}
       <h2> Welcome, enter name to join the jam.</h2>
       <input
-        placeholder="Message..."
+        placeholder="Message Test"
         onChange={(event) => {
           setMessage(event.target.value);
         }}
       />
-      <button onClick={sendMessage}> Send Message</button>
+      <button onClick={sendMessage}>Message Test</button>
       
       <div className="space-y-2">
             {messageReceived.map((messageData, index) => {
+                // Get the current user's ID to check if this is their message
+                const currentUser = JSON.parse(localStorage.getItem('userData'));
+                const isOwnMessage = messageData.senderId === currentUser?.participantId;
+
+                return (
+                <div 
+                    key={index} 
+                    className={`p-2 rounded ${
+                    isOwnMessage 
+                        ? 'bg-blue-100 ml-auto' 
+                        : 'bg-gray-100'
+                    } max-w-[80%]`}
+                >
+                    <div className="text-sm text-gray-600 mb-1">
+                    {isOwnMessage ? 'You' : messageData.senderName}
+                    </div>
+                    <div>{messageData.message}</div>
+                    <div className="text-xs text-gray-500 mt-1">
+                    {new Date(messageData.timestamp).toLocaleTimeString()}
+                    </div>
+                </div>
+                );
+            })}
+        </div>
+    </div>
+
+
+
+    <div className="Enter-name">
+      {/* <input
+        placeholder="Room Number..."
+        onChange={(event) => {
+          setRoom(event.target.value);
+        }}
+      /> */}
+      {/* <button onClick={joinRoom}> Join Room</button> */}
+      <h2> Welcome, enter name to join the jam.</h2>
+      <input
+        placeholder="Enter Name"
+        onChange={(event) => {
+          setMessage(event.target.value);
+        }}
+      />
+      <button onClick={handleEnterName}>Enter Name</button>
+      
+      <div className="space-y-2">
+            {playerReceived.map((messageData, index) => {
                 // Get the current user's ID to check if this is their message
                 const currentUser = JSON.parse(localStorage.getItem('userData'));
                 const isOwnMessage = messageData.senderId === currentUser?.participantId;
