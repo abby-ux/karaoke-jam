@@ -18,7 +18,6 @@ const NewWaitingRoom = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [userRole, setUserRole] = useState(null);
-  const [wsStatus] = useState('connecting');
   const [isStarting, setIsStarting] = useState(false);
   const [participants, setParticipants] = useState([]);
 
@@ -30,21 +29,84 @@ const NewWaitingRoom = () => {
 //   const socket = io.connect("http://localhost:3000");
 const [socket, setSocket] = useState(null);
 
-//   const joinRoom = () => {
-//     if (room !== "") {
-//       socket.emit("join_room", room);
-//     }
-//   };
+// First, create a function to fetch message history
 
-const sendMessage = () => {
+// First, let's fix the initial loading of messages
+useEffect(() => {
+    const fetchMessageHistory = async () => {
+      try {
+        const response = await fetch(`http://localhost:3000/api/messages/${sessionId}`);
+        if (!response.ok) throw new Error('Failed to fetch messages');
+        const messages = await response.json();
+        setMessageReceived(messages);
+        // Save fetched messages to localStorage
+        localStorage.setItem('messageData', JSON.stringify(messages));
+      } catch (error) {
+        console.error('Error fetching messages:', error);
+        // If fetch fails, initialize with empty array
+        localStorage.setItem('messageData', JSON.stringify([]));
+        setMessageReceived([]);
+      }
+    };
+  
+    // Get messages from localStorage or fetch them
+    const savedMessages = localStorage.getItem('messageData');
+    if (savedMessages) {
+      // Make sure we parse it as an array
+      const parsedMessages = JSON.parse(savedMessages);
+      // Extra safety check to ensure it's an array
+      setMessageReceived(Array.isArray(parsedMessages) ? parsedMessages : []);
+    } else {
+      fetchMessageHistory();
+    }
+  }, [sessionId]);
+  
+  const sendMessage = async () => {
     if (socket && message) {
-      // Send the message to the server
-      socket.emit("send_message", { message });
+      // Step 1: Get user data with error checking
+      const storedUserData = JSON.parse(localStorage.getItem('userData'));
+      if (!storedUserData?.participantId) {
+        console.error('No user ID found');
+        return;
+      }
+  
+      // Step 2: Create the new message object
+      const messageData = {
+        message,
+        senderId: storedUserData.participantId,
+        senderName: storedUserData.name,
+        timestamp: new Date()
+      };
+  
+      // Step 3: Get existing messages with careful parsing and validation
+      const existingMessagesString = localStorage.getItem('messageData');
+      let messageArray = [];
       
-      // Add the message to your local message history too
-      setMessageReceived(prevMessages => [...prevMessages, message]);
+      // Make sure we have valid data before parsing
+      if (existingMessagesString) {
+        try {
+          const parsed = JSON.parse(existingMessagesString);
+          // Ensure we have an array, if not, create one
+          messageArray = Array.isArray(parsed) ? parsed : [];
+        } catch (error) {
+          console.error('Error parsing messages from localStorage:', error);
+          messageArray = []; // Reset to empty array if parsing fails
+        }
+      }
+  
+      // Step 4: Create the updated array of messages
+      const updatedMessages = [...messageArray, messageData];
       
-      // Clear the input field
+      // Step 5: Save to localStorage
+      try {
+        localStorage.setItem('messageData', JSON.stringify(updatedMessages));
+      } catch (error) {
+        console.error('Error saving to localStorage:', error);
+      }
+  
+      // Step 6: Emit to socket and update state
+      socket.emit("send_message", messageData);
+      setMessageReceived(updatedMessages);
       setMessage("");
     }
   };
@@ -76,7 +138,12 @@ const sendMessage = () => {
       });
   
       newSocket.on("receive_message", (data) => {
-        setMessageReceived(prevMessages => [...prevMessages, data.message]);
+        setMessageReceived(prevMessages => {
+            const updatedMessages = [...prevMessages, data];
+            // Save to localStorage whenever we receive a message
+            localStorage.setItem('messageData', JSON.stringify(updatedMessages));
+            return updatedMessages;
+          });
       });
   
       // Clean up function
@@ -146,86 +213,6 @@ const sendMessage = () => {
     verifyUserAndRole();
   }, [sessionId, navigate]);
 
-//   // Second effect: Set up WebSocket connection
-//   useEffect(() => {
-//     if (!sessionId) return;
-
-    
-
-//       ws.on("connect", () => {
-//         console.log("Connected to server");
-        
-//     //     // Join the waiting room session
-//     //     ws.emit("join_session", {
-//     //       sessionId,
-//     //       userData: {
-//     //         // Add any user data you want to share
-//     //         name: "User Name",
-//     //         joinedAt: new Date()
-//     //       }
-//     //     });
-//     //   });
-    
-//     ws.onopen = () => {
-//       console.log('WebSocket connection established');
-//       setWsStatus('connected');
-//       setError(null);
-//     };
-
-//     ws.onclose = () => {
-//       console.log('WebSocket connection closed');
-//       setWsStatus('disconnected');
-//     };
-
-//     ws.onerror = (error) => {
-//       console.error('WebSocket error:', error);
-//       setWsStatus('error');
-//       setError('Lost connection to the server');
-//     };
-    
-//     ws.onmessage = (event) => {
-//       try {
-//         const data = JSON.parse(event.data);
-        
-//         switch (data.type) {
-//           case 'PARTICIPANT_JOINED':
-//             handleParticipantJoin(data.participant);
-//             break;
-//           case 'JAM_STARTED':
-//             navigate(`/jam/${sessionId}`);
-//             break;
-//           case 'PARTICIPANT_LEFT':
-//             setParticipants(prev => 
-//               prev.filter(p => p.participantId !== data.participantId)
-//             );
-//             break;
-//           default:
-//             console.log('Unhandled websocket message type:', data.type);
-//         }
-//       } catch (error) {
-//         console.error('Error processing WebSocket message:', error);
-//         setError('Error processing server update');
-//       }
-//     };
-    
-//     return () => {
-//       if (ws.readyState === WebSocket.OPEN) {
-//         ws.close();
-//       }
-//     };
-//   }, [sessionId, navigate]);
-
-//   const handleParticipantJoin = (newParticipant) => {
-//     setParticipants(prev => {
-//       const participantExists = prev.some(
-//         p => p.participantId === newParticipant.participantId
-//       );
-
-//       if (participantExists) return prev;
-//       return [...prev, newParticipant];
-//     });
-//   };
-
   const handleStartJam = async () => {
     if (participants.length < 2) {
       setError('Need at least one other participant to start');
@@ -287,6 +274,7 @@ const sendMessage = () => {
         }}
       /> */}
       {/* <button onClick={joinRoom}> Join Room</button> */}
+      <h2> Welcome, enter name to join the jam.</h2>
       <input
         placeholder="Message..."
         onChange={(event) => {
@@ -294,14 +282,33 @@ const sendMessage = () => {
         }}
       />
       <button onClick={sendMessage}> Send Message</button>
-      <h1> Messages:</h1>
+      
       <div className="space-y-2">
-  {messageReceived.map((message, index) => (
-    <div key={index} className="p-2 bg-gray-100 rounded">
-      {message}
-    </div>
-  ))}
-</div>
+            {messageReceived.map((messageData, index) => {
+                // Get the current user's ID to check if this is their message
+                const currentUser = JSON.parse(localStorage.getItem('userData'));
+                const isOwnMessage = messageData.senderId === currentUser?.participantId;
+
+                return (
+                <div 
+                    key={index} 
+                    className={`p-2 rounded ${
+                    isOwnMessage 
+                        ? 'bg-blue-100 ml-auto' 
+                        : 'bg-gray-100'
+                    } max-w-[80%]`}
+                >
+                    <div className="text-sm text-gray-600 mb-1">
+                    {isOwnMessage ? 'You' : messageData.senderName}
+                    </div>
+                    <div>{messageData.message}</div>
+                    <div className="text-xs text-gray-500 mt-1">
+                    {new Date(messageData.timestamp).toLocaleTimeString()}
+                    </div>
+                </div>
+                );
+            })}
+        </div>
     </div>
 
 
@@ -311,18 +318,7 @@ const sendMessage = () => {
             {sessionData.name || "New Jam Session"}
           </h2>
           
-          {/* Connection status indicator */}
-          {wsStatus !== 'connected' && (
-            <div className="mb-4 text-center text-sm">
-              <span className={`inline-block w-2 h-2 rounded-full mr-2 ${
-                wsStatus === 'connecting' ? 'bg-yellow-400' :
-                wsStatus === 'error' ? 'bg-red-500' : 'bg-gray-400'
-              }`} />
-              {wsStatus === 'connecting' ? 'Connecting to server...' :
-               wsStatus === 'error' ? 'Connection error' :
-               'Disconnected from server'}
-            </div>
-          )}
+          
 
           {/* Error display */}
           {error && (
