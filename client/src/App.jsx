@@ -9,7 +9,8 @@ import HostWaitingRoom from './pages/HostWaitingRoom';
 // import PlayerWaitingRoom from './pages/PlayerWaitingRoom';
 // import TestWaitingRoom from './pages/TestWaitingRoom';
 import NewWaitingRoom from './pages/NewWaitingRoom';
-import JamRoom from './pages/JamRoom';
+import PlayerJamRoom from './pages/PlayerJamRoom';
+import JamDisplay from './pages/JamDisplay';
 
 
 function App() {
@@ -23,7 +24,8 @@ function App() {
         <Route path="/waiting-room/:sessionId" element={<NewWaitingRoom />} />
         <Route path="/join" element={<JoinSession />} />
         <Route path="/waiting-room/:sessionId" element={<HostWaitingRoom />} />
-        <Route path="/jam/:sessionId" element={<JamRoom/>}/>
+        <Route path="/jam/:sessionId" element={<PlayerJamRoom/>}/>
+        <Route path="/jam/:sessionId/host" element={<JamDisplay/>}/>
         {/* <Route path="/waiting-room/player/:sessionId" element={<PlayerWaitingRoom />} />
         <Route path="/test-waiting-room/:sessionId" element={<TestWaitingRoom />} /> */}
       </Routes>

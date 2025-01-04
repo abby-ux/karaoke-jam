@@ -5,7 +5,7 @@ import {  useParams } from 'react-router-dom';
 import io from "socket.io-client";
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
-const JamRoom = () => {
+const JamDisplay = () => {
     // const naviagte = useNavigate();
     const {sessionId} = useParams();
     const [socket, setSocket] = useState(null);
@@ -123,4 +123,4 @@ const JamRoom = () => {
 
 }
 
-export default JamRoom;
+export default JamDisplay;

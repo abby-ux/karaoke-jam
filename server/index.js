@@ -126,7 +126,7 @@ io.on("connection", (socket) => {
   });
 
 
-  socket.on('start_jam', async ({sessionId}) => {
+  socket.on('start_jam', async ({sessionId, isHost}) => {
     try {
         // Update jam status in database
         const jam = await JamModel.findById(sessionId);
@@ -142,8 +142,9 @@ io.on("connection", (socket) => {
                 jamData: {
                     participants: jam.participants,
                     status: jam.status,
-                    startedAt: jam.startedAt
-                }
+                    startedAt: jam.startedAt,
+                },
+                hostParticipantId: jam.host.participantId
             });
         }
     } catch (error) {

@@ -177,7 +177,9 @@ useEffect(() => {
     newSocket.on("navigate_to_jam", (data) => {
         if (data.status === "success") {
             console.log("Received navigation command");
-            navigate(`/jam/${data.sessionId}`);
+            const userData = JSON.parse(localStorage.getItem('userData'));
+            const route = userData.participantId === data.hostParticipantId ? 'host' : '';
+            navigate(`/jam/${data.sessionId}/${route}`);
         }
     });
 
