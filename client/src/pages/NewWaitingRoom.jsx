@@ -18,32 +18,74 @@ const NewWaitingRoom = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [userRole, setUserRole] = useState(null);
-  const [wsStatus, setWsStatus] = useState('connecting');
+  const [wsStatus] = useState('connecting');
   const [isStarting, setIsStarting] = useState(false);
   const [participants, setParticipants] = useState([]);
 
-  const [room, setRoom] = useState("");
+//   const [room, setRoom] = useState("");
 
   // Messages States
   const [message, setMessage] = useState("");
-  const [messageReceived, setMessageReceived] = useState("");
-  const socket = io.connect("http://localhost:3000");
+  const [messageReceived, setMessageReceived] = useState([]);
+//   const socket = io.connect("http://localhost:3000");
+const [socket, setSocket] = useState(null);
 
-  const joinRoom = () => {
-    if (room !== "") {
-      socket.emit("join_room", room);
+//   const joinRoom = () => {
+//     if (room !== "") {
+//       socket.emit("join_room", room);
+//     }
+//   };
+
+const sendMessage = () => {
+    if (socket && message) {
+      // Send the message to the server
+      socket.emit("send_message", { message });
+      
+      // Add the message to your local message history too
+      setMessageReceived(prevMessages => [...prevMessages, message]);
+      
+      // Clear the input field
+      setMessage("");
     }
   };
 
-  const sendMessage = () => {
-    socket.emit("send_message", { message, room });
-  };
+
 
   useEffect(() => {
-    socket.on("receive_message", (data) => {
-      setMessageReceived(data.message);
+    if (!sessionId) return;
+
+    // Create a single socket connection
+    const newSocket = io('http://localhost:3000', {
+      transports: ['websocket'],
+      autoConnect: true
     });
-  }, [socket]);
+
+    setSocket(newSocket);
+
+    // Set up all event listeners
+    newSocket.on("connect", () => {
+        console.log("Connected to server");
+        
+        newSocket.emit("join_session", {
+          sessionId,
+          userData: {
+            name: "User Name",
+            joinedAt: new Date()
+          }
+        });
+      });
+  
+      newSocket.on("receive_message", (data) => {
+        setMessageReceived(prevMessages => [...prevMessages, data.message]);
+      });
+  
+      // Clean up function
+      return () => {
+        if (newSocket) {
+          newSocket.disconnect();
+        }
+      };
+    }, [sessionId, navigate]);
 
   // First effect: Load user data and verify role
   useEffect(() => {
@@ -104,88 +146,85 @@ const NewWaitingRoom = () => {
     verifyUserAndRole();
   }, [sessionId, navigate]);
 
-  // Second effect: Set up WebSocket connection
-  useEffect(() => {
-    if (!sessionId) return;
+//   // Second effect: Set up WebSocket connection
+//   useEffect(() => {
+//     if (!sessionId) return;
 
-    const ws = io('http://localhost:3000', {
-        transports: ['websocket'],
-        autoConnect: true
-      });
+    
 
-      ws.on("connect", () => {
-        console.log("Connected to server");
+//       ws.on("connect", () => {
+//         console.log("Connected to server");
         
-        // Join the waiting room session
-        ws.emit("join_session", {
-          sessionId,
-          userData: {
-            // Add any user data you want to share
-            name: "User Name",
-            joinedAt: new Date()
-          }
-        });
-      });
+//     //     // Join the waiting room session
+//     //     ws.emit("join_session", {
+//     //       sessionId,
+//     //       userData: {
+//     //         // Add any user data you want to share
+//     //         name: "User Name",
+//     //         joinedAt: new Date()
+//     //       }
+//     //     });
+//     //   });
     
-    ws.onopen = () => {
-      console.log('WebSocket connection established');
-      setWsStatus('connected');
-      setError(null);
-    };
+//     ws.onopen = () => {
+//       console.log('WebSocket connection established');
+//       setWsStatus('connected');
+//       setError(null);
+//     };
 
-    ws.onclose = () => {
-      console.log('WebSocket connection closed');
-      setWsStatus('disconnected');
-    };
+//     ws.onclose = () => {
+//       console.log('WebSocket connection closed');
+//       setWsStatus('disconnected');
+//     };
 
-    ws.onerror = (error) => {
-      console.error('WebSocket error:', error);
-      setWsStatus('error');
-      setError('Lost connection to the server');
-    };
+//     ws.onerror = (error) => {
+//       console.error('WebSocket error:', error);
+//       setWsStatus('error');
+//       setError('Lost connection to the server');
+//     };
     
-    ws.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
+//     ws.onmessage = (event) => {
+//       try {
+//         const data = JSON.parse(event.data);
         
-        switch (data.type) {
-          case 'PARTICIPANT_JOINED':
-            handleParticipantJoin(data.participant);
-            break;
-          case 'JAM_STARTED':
-            navigate(`/jam/${sessionId}`);
-            break;
-          case 'PARTICIPANT_LEFT':
-            setParticipants(prev => 
-              prev.filter(p => p.participantId !== data.participantId)
-            );
-            break;
-          default:
-            console.log('Unhandled websocket message type:', data.type);
-        }
-      } catch (error) {
-        console.error('Error processing WebSocket message:', error);
-        setError('Error processing server update');
-      }
-    };
+//         switch (data.type) {
+//           case 'PARTICIPANT_JOINED':
+//             handleParticipantJoin(data.participant);
+//             break;
+//           case 'JAM_STARTED':
+//             navigate(`/jam/${sessionId}`);
+//             break;
+//           case 'PARTICIPANT_LEFT':
+//             setParticipants(prev => 
+//               prev.filter(p => p.participantId !== data.participantId)
+//             );
+//             break;
+//           default:
+//             console.log('Unhandled websocket message type:', data.type);
+//         }
+//       } catch (error) {
+//         console.error('Error processing WebSocket message:', error);
+//         setError('Error processing server update');
+//       }
+//     };
     
-    return () => {
-      if (ws.readyState === WebSocket.OPEN) {
-        ws.close();
-      }
-    };
-  }, [sessionId, navigate]);
+//     return () => {
+//       if (ws.readyState === WebSocket.OPEN) {
+//         ws.close();
+//       }
+//     };
+//   }, [sessionId, navigate]);
 
-  const handleParticipantJoin = (newParticipant) => {
-    setParticipants(prev => {
-      const participantExists = prev.some(
-        p => p.participantId === newParticipant.participantId
-      );
+//   const handleParticipantJoin = (newParticipant) => {
+//     setParticipants(prev => {
+//       const participantExists = prev.some(
+//         p => p.participantId === newParticipant.participantId
+//       );
 
-      if (participantExists) return prev;
-      return [...prev, newParticipant];
-    });
-  };
+//       if (participantExists) return prev;
+//       return [...prev, newParticipant];
+//     });
+//   };
 
   const handleStartJam = async () => {
     if (participants.length < 2) {
@@ -241,13 +280,13 @@ const NewWaitingRoom = () => {
   return (
     <div className="max-w-2xl mx-auto p-4 space-y-6">
         <div className="Test">
-      <input
+      {/* <input
         placeholder="Room Number..."
         onChange={(event) => {
           setRoom(event.target.value);
         }}
-      />
-      <button onClick={joinRoom}> Join Room</button>
+      /> */}
+      {/* <button onClick={joinRoom}> Join Room</button> */}
       <input
         placeholder="Message..."
         onChange={(event) => {
@@ -255,8 +294,14 @@ const NewWaitingRoom = () => {
         }}
       />
       <button onClick={sendMessage}> Send Message</button>
-      <h1> Message:</h1>
-      {messageReceived}
+      <h1> Messages:</h1>
+      <div className="space-y-2">
+  {messageReceived.map((message, index) => (
+    <div key={index} className="p-2 bg-gray-100 rounded">
+      {message}
+    </div>
+  ))}
+</div>
     </div>
 
 
