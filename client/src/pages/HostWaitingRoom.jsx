@@ -1,3 +1,5 @@
+// host waiting room
+
 import { useState, useEffect } from 'react';
 // import { useNavigate } from 'react-router';
 import { io } from 'socket.io-client';

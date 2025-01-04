@@ -1,77 +1,40 @@
-// src/services/socket.js
+// client/src/services/socket.js
 import { io } from 'socket.io-client';
 
-class SocketService {
-  constructor() {
-    this.socket = null;
-    this.reconnectAttempts = 0;
-    this.maxReconnectAttempts = 5;
-  }
+const SOCKET_URL = 'http://localhost:3000';
 
-  connect() {
-    if (this.socket) return;
+const socket = io(SOCKET_URL, {
+  withCredentials: true,
+  transports: ['websocket', 'polling'],
+  reconnection: true,
+  reconnectionAttempts: 5,
+  reconnectionDelay: 1000,
+  autoConnect: false // We'll connect manually when needed
+});
 
-    // Initialize socket with reconnection options
-    this.socket = io('http://localhost:3000', {
-      reconnection: true,
-      reconnectionAttempts: this.maxReconnectAttempts,
-      reconnectionDelay: 1000,
-      reconnectionDelayMax: 5000,
-      timeout: 10000,
+// Add event listeners for connection status
+socket.on('connect', () => {
+  console.log('Connected to WebSocket server....');
+});
+
+socket.on('connect_error', (error) => {
+  console.error('Socket connection error:', error);
+});
+
+socket.on('disconnect', (reason) => {
+  console.log('Disconnected from WebSocket server:', reason);
+});
+
+// Helper function to join a specific jam room
+const joinJamRoom = (sessionId) => {
+  if (socket.connected) {
+    socket.emit('joinJamRoom', sessionId);
+  } else {
+    socket.connect();
+    socket.once('connect', () => {
+      socket.emit('joinJamRoom', sessionId);
     });
-
-    // Set up event handlers
-    this.socket.on('connect', () => {
-      console.log('Socket connected:', this.socket.id);
-      this.reconnectAttempts = 0;
-    });
-
-    this.socket.on('connect_error', (error) => {
-      console.error('Socket connection error:', error);
-      this.reconnectAttempts++;
-    });
-
-    this.socket.on('disconnect', (reason) => {
-      console.log('Socket disconnected:', reason);
-    });
-
-    return this.socket;
   }
+};
 
-  // Join a specific jam session room
-  joinJamSession(sessionId) {
-    if (!this.socket) this.connect();
-    this.socket.emit('joinJamSession', { sessionId });
-  }
-
-  // Leave a jam session room
-  leaveJamSession(sessionId) {
-    if (this.socket) {
-      this.socket.emit('leaveJamSession', { sessionId });
-    }
-  }
-
-  // Subscribe to participant updates
-  onParticipantJoined(callback) {
-    if (!this.socket) this.connect();
-    this.socket.on('participantJoined', callback);
-  }
-
-  // Subscribe to jam status updates
-  onJamStatusUpdate(callback) {
-    if (!this.socket) this.connect();
-    this.socket.on('jamStatusUpdate', callback);
-  }
-
-  // Clean up socket connection
-  disconnect() {
-    if (this.socket) {
-      this.socket.disconnect();
-      this.socket = null;
-    }
-  }
-}
-
-// Create and export a singleton instance
-const socketService = new SocketService();
-export default socketService;
+export { socket, joinJamRoom };
