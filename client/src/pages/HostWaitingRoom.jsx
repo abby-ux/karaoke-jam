@@ -7,11 +7,6 @@ import { UsersRound } from 'lucide-react';
 import PropTypes from 'prop-types';
 import { Button } from '@/components/ui/button';
 
-<<<<<<< HEAD
-
-// A reusable component to display individual participants
-=======
->>>>>>> 449d35cc2c8ef0b705446b436ca41335e2f970b7
 const ParticipantRow = ({ participant, isHost }) => (
   <div className="p-3 bg-gray-50 rounded-lg flex items-center justify-between">
     <span>
@@ -24,13 +19,8 @@ const ParticipantRow = ({ participant, isHost }) => (
   </div>
 );
 
-<<<<<<< HEAD
-const HostWaitingRoom = ({ sessionData, onParticipantJoin }) => {
-  // State management for component
-=======
 const HostWaitingRoom = ({ sessionData, onParticipantJoin, onStartJam }) => {
   // const navigate = useNavigate();
->>>>>>> 449d35cc2c8ef0b705446b436ca41335e2f970b7
   const [participants, setParticipants] = useState([]);
   const [isStarting, setIsStarting] = useState(false);
   const [error, setError] = useState(null);
@@ -45,13 +35,6 @@ const HostWaitingRoom = ({ sessionData, onParticipantJoin, onStartJam }) => {
     // Initialize participants with current session data
     setParticipants(sessionData.participants || []);
     
-<<<<<<< HEAD
-  }, [sessionData, onParticipantJoin]);
-
-  
-
-  // Handle starting the jam session
-=======
     // Socket connection
     const socket = io('http://localhost:3000', {
       query: { sessionId: sessionData.sessionId }
@@ -90,7 +73,6 @@ const HostWaitingRoom = ({ sessionData, onParticipantJoin, onStartJam }) => {
     return () => socket.disconnect();
   }, [sessionData, onParticipantJoin]);
 
->>>>>>> 449d35cc2c8ef0b705446b436ca41335e2f970b7
   const handleStartJam = async () => {
     if (participants.length < 2) {
       setError('Need at least one other participant to start');
@@ -111,13 +93,9 @@ const HostWaitingRoom = ({ sessionData, onParticipantJoin, onStartJam }) => {
         throw new Error((await response.json()).message || 'Failed to start jam');
       }
 
-<<<<<<< HEAD
-      
-=======
       if (onStartJam) {
         onStartJam();
       }
->>>>>>> 449d35cc2c8ef0b705446b436ca41335e2f970b7
     } catch (error) {
       setError(error.message);
     } finally {
@@ -137,9 +115,6 @@ const HostWaitingRoom = ({ sessionData, onParticipantJoin, onStartJam }) => {
             {sessionData.name || "New Jam Session"}
           </h2>
           
-<<<<<<< HEAD
-          
-=======
           {wsStatus !== 'connected' && (
             <div className="mb-4 text-center text-sm">
               <span className={`inline-block w-2 h-2 rounded-full mr-2 ${
@@ -151,7 +126,6 @@ const HostWaitingRoom = ({ sessionData, onParticipantJoin, onStartJam }) => {
                'Disconnected from server'}
             </div>
           )}
->>>>>>> 449d35cc2c8ef0b705446b436ca41335e2f970b7
 
           {error && (
             <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
