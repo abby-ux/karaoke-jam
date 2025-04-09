@@ -2,7 +2,7 @@
 import { useNavigate } from 'react-router-dom';
 import io from "socket.io-client";
 import { useState } from 'react';
-import axios from 'axios';
+//import axios from 'axios';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
 const CreateJam = () => {
