@@ -34,9 +34,11 @@ router.post('/create', async (req, res) => {
         // ex) export async function createNewJam(hostData, configData) { ......
 
 
-        const { hostName, config } = req.body;
+        const { host, config } = req.body;
+        // console.log(host);
         const hostParticipantId = uuidv4();
-        
+        const hostName = host.name;
+        // console.log(hostName);
 
         // Create a new jam session
         const jam = new Jam({
@@ -69,6 +71,18 @@ router.post('/create', async (req, res) => {
 
         // Save the jam to the database
         await jam.save();
+
+        // console.log("jam created:");
+        // console.log(jam);
+
+        // console.log("Data sent back:")
+        // console.log({
+        //     hostId: hostParticipantId,
+        //     sessionId: jam._id,
+        //     joinUrl,
+        //     qrCode,
+        //     config: jam.config
+        // });
 
         // Send back the necessary data
         res.status(201).json({
@@ -129,6 +143,7 @@ router.post('/join-jam', async (req, res) => {
 });
 
 // Route to get jam session details
+// future implement: fix this...
 router.get('/:sessionId', async (req, res) => {
     try {
         const { sessionId } = req.params;
@@ -156,6 +171,8 @@ router.get('/:sessionId', async (req, res) => {
             config: jam.config
           });
 
+          console.log(jam.participants);
+
         
 
     } catch (error) {
@@ -171,6 +188,8 @@ router.post('/:sessionId/start', async (req, res) => {
         const { hostId } = req.body;  // To verify the request is from the host
 
         const jam = await Jam.findById(sessionId);
+        // console.log('found jam: ');
+        // console.log(jam);
         
         if (!jam) {
             return res.status(404).json({ error: 'Jam session not found' });

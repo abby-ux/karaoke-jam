@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
+import io from "socket.io-client";
 import { UsersRound } from 'lucide-react';
 import io from "socket.io-client";
 
@@ -41,6 +42,8 @@ const PlayerWaitingRoom = ({ sessionData, onParticipantJoin }) => {
     // }, [socket]);
 
   useEffect(() => {
+    let socket;
+
     // Initialize the component with session data
     if (sessionData) {
       try {
@@ -55,6 +58,71 @@ const PlayerWaitingRoom = ({ sessionData, onParticipantJoin }) => {
       }
     }
     
+<<<<<<< HEAD
+=======
+    // Set up Socket.IO connection for real-time updates
+    const setupRealTimeUpdates = async () => {
+        if (!sessionData?.sessionId) {
+          setError('No session ID available');
+          return;
+        }
+      
+        try {
+        //   const { io } = await import('socket.io-client');
+          socket = io('http://localhost:3000', {
+            query: { 
+              sessionId: sessionData.sessionId,
+              userData: localStorage.getItem('userData')
+            }
+          });
+          
+          socket.on('connect', () => {
+            console.log('Socket.IO connection established');
+            setWsStatus('connected');
+          });
+      
+          // Listen for the same events that the server will emit
+          socket.on('PARTICIPANT_JOINED', (data) => {
+            console.log('New participant joined:', data);
+            setParticipants(prevParticipants => {
+              const exists = prevParticipants.some(
+                p => p.participantId === data.participant.participantId
+              );
+              if (exists) return prevParticipants;
+              
+              return [...prevParticipants, data.participant];
+            });
+          });
+      
+          socket.on('jam_started', () => {
+            window.location.href = `/jam/${sessionData.sessionId}`;
+          });
+      
+          socket.on('disconnect', () => {
+            console.log('Socket.IO connection closed');
+            setWsStatus('disconnected');
+          });
+      
+          socket.on('connect_error', (error) => {
+            console.error('Socket.IO connection error:', error);
+            setWsStatus('error');
+            setError('Lost connection to the server');
+          });
+        } catch (error) {
+          console.error('Error setting up Socket.IO:', error);
+          setError('Failed to establish connection');
+        }
+      };
+
+    setupRealTimeUpdates();
+    
+    // Cleanup function
+    return () => {
+      if (socket) {
+        socket.disconnect();
+      }
+    };
+>>>>>>> 449d35cc2c8ef0b705446b436ca41335e2f970b7
   }, [sessionData, onParticipantJoin]);
 
   // Show error state if something goes wrong
@@ -133,7 +201,7 @@ const PlayerWaitingRoom = ({ sessionData, onParticipantJoin }) => {
   );
 };
 
-// PropType definitions for proper type checking
+// PropTypes definitions remain the same
 PlayerWaitingRoom.propTypes = {
   sessionData: PropTypes.shape({
     sessionId: PropTypes.string.isRequired,
