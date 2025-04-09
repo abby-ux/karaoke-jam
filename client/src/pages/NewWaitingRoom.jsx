@@ -69,6 +69,7 @@ useEffect(() => {
     if (socket && message) {
       // Step 1: Get user data with error checking
       const storedUserData = JSON.parse(localStorage.getItem('userData'));
+      console.log(storedUserData);
       if (!storedUserData?.participantId) {
         console.error('No user ID found');
         return;
@@ -127,6 +128,7 @@ useEffect(() => {
             name: playerName,
             isHost: false
         };
+        console.log(newUserData);
 
         const existingPlayers = localStorage.getItem('playerNameData');
         let playerArray = [];
@@ -180,6 +182,7 @@ useEffect(() => {
             const userData = JSON.parse(localStorage.getItem('userData'));
             const route = userData.participantId === data.hostParticipantId ? 'host' : '';
             navigate(`/jam/${data.sessionId}/${route}`);
+            console.log(userData);
         }
     });
 
@@ -267,6 +270,8 @@ useEffect(() => {
       try {
         // Get stored user data
         const storedUserData = JSON.parse(localStorage.getItem('userData'));
+        console.log("storedUserData");
+        console.log(storedUserData);
         if (!storedUserData?.participantId) {
           navigate('/join');
           return;
@@ -289,6 +294,8 @@ useEffect(() => {
           isHost: isActuallyHost
         };
         localStorage.setItem('userData', JSON.stringify(verifiedUserData));
+        // console.log("userDataaaaaaaaaaaaaaaaaaaaaaaa");
+        // console.log(localStorage.getItem('userData'));
         
         // Transform session data
         const transformedData = {
@@ -298,15 +305,26 @@ useEffect(() => {
             participantId: data.host.participantId,
             name: data.host.name
           },
-          participants: data.participants || [],
+          participants: {
+            joinedAt: participants.joinedAt,
+            name: participants.name,
+            participants: participants.participantId,
+            _id: participants._id
+
+          },
           status: data.status,
           config: data.config,
           joinUrl: data.joinUrl,
           qrCode: data.qrCode
         };
+        console.log(data);
+        console.log(data.name);
+
+        // console.log(transformedData);
 
         setSessionData(transformedData);
         setParticipants(data.participants || []);
+
         setUserRole(isActuallyHost ? 'host' : 'player');
         
       } catch (err) {
@@ -515,16 +533,16 @@ useEffect(() => {
                   key={participant.participantId}
                   className="p-3 bg-gray-50 rounded-lg flex items-center justify-between"
                 >
-                  <span>
+                  <span className="text-sm text-gray-500">
                     {participant.name}
                     {participant.participantId === sessionData.host.participantId && (
                       <span className="ml-2 text-sm text-blue-600">(Host)</span>
                     )}
-                  </span>
-                  <span className="text-sm text-gray-500">
-                    {new Date(participant.joinedAt).toLocaleTimeString()}
-                  </span>
-                </div>
+            
+                
+                    { new Date(participant.joinedAt).toLocaleTimeString() } 
+                  </span> 
+                </div> 
               ))}
             </div>
           </div>

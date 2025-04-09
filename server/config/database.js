@@ -5,7 +5,7 @@ dotenv.config();
 
 const connectDB = async () => {
   try {
-    // Remove deprecated options since you're using MongoDB driver 4.0+
+    // Remove deprecated options, using MongoDB driver 4.0+
     const connection = await mongoose.connect(process.env.MONGODB_URI);
     
     mongoose.connection.on('connected', () => {
