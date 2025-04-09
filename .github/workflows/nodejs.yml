@@ -6,9 +6,9 @@ name: Node.js CI
 # triggers building when testbranch pushes/main pulls
 on:
   push:
-    branches: [ $test-branch ]
+    branches: [ "test-branch", "main" ]
   pull_request:
-    branches: [ $abby-pulling $main ]
+    branches: [ "abby-pulling", "main" ]
 
 jobs:
   build:
