@@ -35,12 +35,9 @@ const WaitingRoomContainer = () => {
   const [sessionData, setSessionData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
-<<<<<<< HEAD
-  const [userData, setUserData] = useState(null);
-  const socket = io.connect("http://localhost:3000");
-=======
+  //const [userData, setUserData] = useState(null);
   const [userRole, setUserRole] = useState(null);
->>>>>>> 449d35cc2c8ef0b705446b436ca41335e2f970b7
+  const socket = io.connect("http://localhost:3000");
 
   // First effect: Load user data and verify role
   useEffect(() => {
@@ -100,7 +97,7 @@ const WaitingRoomContainer = () => {
     verifyUserAndRole();
   }, [sessionId, navigate]);
 
-<<<<<<< HEAD
+
   
 
   useEffect(() => {
@@ -110,8 +107,7 @@ const WaitingRoomContainer = () => {
   }, [socket]);
 
   // Handler for participant updates
-=======
->>>>>>> 449d35cc2c8ef0b705446b436ca41335e2f970b7
+
   const handleParticipantJoin = (newParticipant) => {
     setSessionData(prev => {
       if (!prev) return prev;

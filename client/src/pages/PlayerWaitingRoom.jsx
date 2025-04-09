@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
 import io from "socket.io-client";
 import { UsersRound } from 'lucide-react';
-import io from "socket.io-client";
 
 // A reusable component for the participant row to keep the code DRY
 const ParticipantRow = ({ participant, isHost }) => (
@@ -30,8 +29,27 @@ const PlayerWaitingRoom = ({ sessionData, onParticipantJoin }) => {
 
   const socket = io.connect("http://localhost:3000");
 
-  const handleAddPlayer = () => {
-    socket.emit("add_player", { playerName, jam });
+  
+    const handleAddPlayer = (e) => {
+      // Prevent default form submission -its in a form
+      if (e) e.preventDefault();
+      
+      // Set loading to true when starting the operation
+      setIsLoading(true);
+      
+      // Emit the socket event - tell socket we want to add a player
+      socket.emit("add_player", { playerName, jam });
+      
+      // ocket listener to know when the operation completes
+      socket.on("player_added", (response) => {
+        setIsLoading(false);
+        // at this point rerender view/update list ...
+      });
+      
+      socket.on("add_player_error", (error) => {
+        setIsLoading(false);
+        setError(error.message || "Failed to add player");
+      });
   };
 
   // added to main container
@@ -42,7 +60,7 @@ const PlayerWaitingRoom = ({ sessionData, onParticipantJoin }) => {
     // }, [socket]);
 
   useEffect(() => {
-    let socket;
+    //let socket;
 
     // Initialize the component with session data
     if (sessionData) {
@@ -58,71 +76,6 @@ const PlayerWaitingRoom = ({ sessionData, onParticipantJoin }) => {
       }
     }
     
-<<<<<<< HEAD
-=======
-    // Set up Socket.IO connection for real-time updates
-    const setupRealTimeUpdates = async () => {
-        if (!sessionData?.sessionId) {
-          setError('No session ID available');
-          return;
-        }
-      
-        try {
-        //   const { io } = await import('socket.io-client');
-          socket = io('http://localhost:3000', {
-            query: { 
-              sessionId: sessionData.sessionId,
-              userData: localStorage.getItem('userData')
-            }
-          });
-          
-          socket.on('connect', () => {
-            console.log('Socket.IO connection established');
-            setWsStatus('connected');
-          });
-      
-          // Listen for the same events that the server will emit
-          socket.on('PARTICIPANT_JOINED', (data) => {
-            console.log('New participant joined:', data);
-            setParticipants(prevParticipants => {
-              const exists = prevParticipants.some(
-                p => p.participantId === data.participant.participantId
-              );
-              if (exists) return prevParticipants;
-              
-              return [...prevParticipants, data.participant];
-            });
-          });
-      
-          socket.on('jam_started', () => {
-            window.location.href = `/jam/${sessionData.sessionId}`;
-          });
-      
-          socket.on('disconnect', () => {
-            console.log('Socket.IO connection closed');
-            setWsStatus('disconnected');
-          });
-      
-          socket.on('connect_error', (error) => {
-            console.error('Socket.IO connection error:', error);
-            setWsStatus('error');
-            setError('Lost connection to the server');
-          });
-        } catch (error) {
-          console.error('Error setting up Socket.IO:', error);
-          setError('Failed to establish connection');
-        }
-      };
-
-    setupRealTimeUpdates();
-    
-    // Cleanup function
-    return () => {
-      if (socket) {
-        socket.disconnect();
-      }
-    };
->>>>>>> 449d35cc2c8ef0b705446b436ca41335e2f970b7
   }, [sessionData, onParticipantJoin]);
 
   // Show error state if something goes wrong
