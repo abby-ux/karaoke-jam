@@ -72,17 +72,17 @@ router.post('/create', async (req, res) => {
         // Save the jam to the database
         await jam.save();
 
-        console.log("jam created:");
-        console.log(jam);
+        // console.log("jam created:");
+        // console.log(jam);
 
-        console.log("Data sent back:")
-        console.log({
-            hostId: hostParticipantId,
-            sessionId: jam._id,
-            joinUrl,
-            qrCode,
-            config: jam.config
-        });
+        // console.log("Data sent back:")
+        // console.log({
+        //     hostId: hostParticipantId,
+        //     sessionId: jam._id,
+        //     joinUrl,
+        //     qrCode,
+        //     config: jam.config
+        // });
 
         // Send back the necessary data
         res.status(201).json({
@@ -170,6 +170,8 @@ router.get('/:sessionId', async (req, res) => {
             status: jam.status,
             config: jam.config
           });
+
+          console.log(jam.participants);
 
         
 

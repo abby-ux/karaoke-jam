@@ -45,8 +45,8 @@ const JoinSession = () => {
     try {
       // Create the new user object
       const newUser = {
-        // name: name.trim(),
-        name: null,
+        name: name.trim(),
+        // name: null,
         sessionId: jamcode,
         isHost: false,
         joinedAt: new Date().toISOString()
