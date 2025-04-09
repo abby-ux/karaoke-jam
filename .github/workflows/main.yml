@@ -37,8 +37,8 @@ jobs:
 
     strategy:
       matrix:
-        # Note: 18 is too old
-        node-version: [20.x, 22.x]
+        # Note: 18 is too old, 20??
+        node-version: [22.x]
 
     steps:
     - uses: actions/checkout@v4
