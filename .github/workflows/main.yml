@@ -1,30 +1,53 @@
 name: Node.js CI
 
-# triggers building when testbranch pushes/main pulls
+# triggers on two diff events;
 on:
+  # triggers when I push to test-branch or main
   push:
     branches: ["test-branch", "main"]
+  # triggers when I pull from abby-pulling or main
   pull_request:
     branches: ["abby-pulling", "main"]
 
+# Each job runs in a fresh instance of the virtual environment
+# Jobs run in parallel by default
+# Jobs can share data with other jobs using artifacts
+# Each job has its own isolated environment, so environment variables and file system changes aren't shared between jobs unless explicitly configured
 jobs:
+  # the first job is just to run npm ci (clean-install), then npm run build
   build-client:
-    name: Build & Test Client
+    name: Build Client
     runs-on: ubuntu-latest
 
+    # strategy = way to dynamically create multiple job runs based on matrix of configuration
+    # So we could run the same job multiple times with diff variables, for example, version; [16.x, 18.x, 22.x] to run the same job with 3 diff versions.
+    # use case: Test against multiple operating systems, versions, or other configurations
     strategy:
       matrix:
         # Changed to only one version
         node-version: [22.x]
+        os: [ubuntu-latest, windows-latest]
 
     steps:
+      # this step uses the _checkout_ action to:
+        # clone my repo to the runner
+        # fetch my commit that triggered the workflow
+        # set up working dir to match the repo's code,
+        # then run/test/build whatever the workflow steps come next  
     - uses: actions/checkout@v4
     - name: Use Node.js ${{ matrix.node-version }}
+      # this step uses the _setup-node_ action to 
+        # installs whatever node version I specified
+        # add node.js executable to PATH (so npm and node commands available)
+        # set up npm dependencies based off of the package-lock json file in the dir
       uses: actions/setup-node@v4
       with:
         node-version: ${{ matrix.node-version }}
         cache: 'npm'
         cache-dependency-path: './client/package-lock.json'
+        # caching feature: stores npm dependencies after first run
+        # can retrieve from cache instead of reinstalling dependencies in future runs
+        # speeds up build time for dependencies that use the same dependencies repeatedly
     - run: npm ci
       working-directory: ./client
     - run: npm run build --if-present
@@ -33,7 +56,7 @@ jobs:
     #   working-directory: ./client
 
   build-server:
-    name: Build & Test Server
+    name: Build Server
     runs-on: ubuntu-latest
 
     strategy:

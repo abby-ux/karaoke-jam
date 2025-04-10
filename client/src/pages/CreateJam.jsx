@@ -2,7 +2,7 @@
 import { useNavigate } from 'react-router-dom';
 import io from "socket.io-client";
 import { useState } from 'react';
-//import axios from 'axios';
+import axios from 'axios';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
 const CreateJam = () => {
@@ -15,6 +15,37 @@ const CreateJam = () => {
         playlistId: '',
         singersPerRound: 1
     });
+
+    const generateSlug = async (objectId) => {
+        // Start with the first 8 characters as the base slug
+        let baseSlug = objectId.toString().substring(0, 5);
+        let slug = baseSlug;
+        let counter = 0;
+        
+        // Check if the slug already exists in your database
+        // while (await slugExistsInDatabase(slug)) {
+        //   counter++;
+        //   // If collision, append a counter
+        //   slug = `${baseSlug}${counter}`;
+          
+        //   // Alternative: Use a different section of the ObjectId
+        //   // slug = objectId.toString().substring(counter, counter + 8);
+        // }
+        
+        return slug;
+      };
+
+    // const slugExistsInDatabase = async (slug) => {
+    // const result = await db.collection('jams').findOne({ slug });
+    // return !!result;
+    // };
+
+    // const updateJamWithSlug = async (jamId, slug) => {
+    //     await db.collection('jams').updateOne(
+    //         { _id: jamId },
+    //         { $set: { slug: slug } }
+    //     );
+    // };
 
     const handleCreateJam = async (e) => {
         e.preventDefault();
@@ -79,8 +110,13 @@ const CreateJam = () => {
             joinedAt: new Date()
           });
 
+          // get slug for session ID, to we have a better URL.
+          const sessionSlug = await generateSlug(sessionId);
 
-            navigate(`/waiting-room/${sessionId}`);
+          // update jam record with slug in DB
+        //   await updateJamWithSlug(jamId, slug);
+
+            navigate(`/waiting-room/${sessionSlug}`);
         } catch (error) {
             alert('Failed to create jam session. Please try again.');
             console.error('Error creating jam:', error);

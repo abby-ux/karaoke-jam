@@ -13,7 +13,10 @@ const Home = () => {
 
     // Initial click handler
 const handleCreateJamClick = () => {
-    // First navigate to a pre-creation screen
+    // First navigate to a pre-creation screen (using React Router library)
+      // hard coded path to navigate to the compenet with this URL:
+      // future implementations could include types of jams:
+      // navigate(`/create-jam/${jamType}/setup`);
     navigate('/create-jam/setup');
     // Jam config:
     // - Jam name
@@ -27,19 +30,19 @@ const handleCreateJamClick = () => {
   };
   
   // Later, when user confirms settings
-//   const createJamSession = async (settings) => {
-//     try {
-//       const response = await axios.post('/api/sessions', {
-//         ...settings,
-//         createdAt: new Date(),
-//       });
-//       setSessionData(response.data);
-//       navigate(`/jam/${response.data.sessionId}`);
-//     } catch (error) {
-//         console.log(error);
-//       // Handle error appropriately
-//     }
-//   };
+  //   const createJamSession = async (settings) => {
+  //     try {
+  //       const response = await axios.post('/api/sessions', {
+  //         ...settings,
+  //         createdAt: new Date(),
+  //       });
+  //       setSessionData(response.data);
+  //       navigate(`/jam/${response.data.sessionId}`);
+  //     } catch (error) {
+  //         console.log(error);
+  //       // Handle error appropriately
+  //     }
+  //   };
 
     return (
     <div className="min-h-screen bg-gradient-to-b from-purple-600 to-blue-700">

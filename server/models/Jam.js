@@ -45,7 +45,7 @@ const jamSchema = new mongoose.Schema({
     type: Date    // Will be set when status changes to 'active'
   },
   participants: [{
-    name: String,      // Add name field for participant
+    name: String,  
     participantId: String,
     joinedAt: {
       type: Date,
@@ -57,7 +57,13 @@ const jamSchema = new mongoose.Schema({
     singer: String,
     addedAt: Date
   }],
-  // Add fields for session sharing
+  // the slug to join
+  slug: {
+    type: String,
+    unique: true,    // Add an index to ensure uniqueness
+    sparse: true     // Allow documents without a slug
+  },
+  // delete?: Add fields for session sharing
   joinUrl: String,     // Store the generated join URL
   qrCode: String      // Store the QR code data URL
 })
